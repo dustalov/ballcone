@@ -9,7 +9,7 @@ import statistics
 import sys
 import uuid
 from collections import namedtuple, Counter, defaultdict
-from datetime import datetime
+from datetime import datetime, timedelta
 from json import JSONDecodeError
 
 import httpagentparser
@@ -83,7 +83,6 @@ class SyslogProtocol(asyncio.DatagramProtocol):
             return
 
         try:
-            # XXX: Who is guilty, syslog_parse or nginx?
             content = json.loads(match.group('message'))
         except JSONDecodeError as e:
             print(e, file=sys.stderr)
@@ -219,7 +218,7 @@ class HelloProtocol(asyncio.Protocol):
             for value in db.http_user_agent_os.iterator(include_key=False):
                 values[value.decode('utf-8')] += 1
 
-            if parameter:
+            if isint(parameter):
                 count = int(parameter)
             else:
                 count = 10
@@ -232,7 +231,7 @@ class HelloProtocol(asyncio.Protocol):
             for value in db.http_user_agent_browser.iterator(include_key=False):
                 values[value.decode('utf-8')] += 1
 
-            if parameter:
+            if isint(parameter):
                 count = int(parameter)
             else:
                 count = 10
@@ -245,7 +244,7 @@ class HelloProtocol(asyncio.Protocol):
             for value in db.uri.iterator(include_key=False):
                 values[value.decode('utf-8')] += 1
 
-            if parameter:
+            if isint(parameter):
                 count = int(parameter)
             else:
                 count = 10
@@ -258,7 +257,7 @@ class HelloProtocol(asyncio.Protocol):
             for value in db.remote_addr.iterator(include_key=False):
                 values[value.decode('utf-8')] += 1
 
-            if parameter:
+            if isint(parameter):
                 count = int(parameter)
             else:
                 count = 10
@@ -276,12 +275,66 @@ class HelloProtocol(asyncio.Protocol):
                 else:
                     values['UNKNOWN'] += 1
 
-            if parameter:
+            if isint(parameter):
                 count = int(parameter)
             else:
                 count = 10
 
             response = '\n'.join(['{}: {:d}'.format(uri, found) for uri, found in values.most_common(count)])
+
+        if command == 'visits':
+            if isint(parameter):
+                delta = int(parameter)
+            else:
+                delta = 7
+
+            present = datetime.utcnow()
+            past = present - timedelta(days=delta)
+
+            past_ts, present_ts = round(past.timestamp() * 1000), round(present.timestamp() * 1000)
+            past_key = ('%d' % past_ts).encode('ascii')
+            present_key = ('%d\tz' % present_ts).encode('ascii')
+
+            visits = Counter()
+
+            for key in db.uri.iterator(start=past_key, stop=present_key, include_value=False):
+                timestamp, _, _ = key.decode('ascii').partition('\t')
+
+                if not isint(timestamp):
+                    continue
+
+                date = datetime.utcfromtimestamp(int(timestamp) / 1000)
+
+                visits[date.strftime('%Y-%m-%d')] += 1
+
+            response = '\n'.join(['{}: {:d}'.format(*pair) for pair in visits.items()])
+
+        if command == 'unique':
+            if isint(parameter):
+                delta = int(parameter)
+            else:
+                delta = 7
+
+            present = datetime.utcnow()
+            past = present - timedelta(days=delta)
+
+            past_ts, present_ts = round(past.timestamp() * 1000), round(present.timestamp() * 1000)
+            past_key = ('%d' % past_ts).encode('ascii')
+            present_key = ('%d\tz' % present_ts).encode('ascii')
+
+            unique = defaultdict(set)
+
+            for key, value in db.remote_addr.iterator(start=past_key, stop=present_key):
+                timestamp, _, _ = key.decode('ascii').partition('\t')
+
+                if not isint(timestamp):
+                    continue
+
+                date = datetime.utcfromtimestamp(int(timestamp) / 1000)
+
+                unique[date.strftime('%Y-%m-%d')].add(value.decode('utf-8'))
+
+            response = '\n'.join(['{}: {:d}'.format(date, len(ips)) for date, ips in unique.items()])
 
         if response:
             self.transport.write(response.encode('utf-8'))
