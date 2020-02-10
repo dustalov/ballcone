@@ -15,8 +15,6 @@ from json import JSONDecodeError
 import httpagentparser
 import plyvel
 from geolite2 import geolite2
-from syslog_parse import parse
-from syslog_parse.parser import MessageFormatError
 
 DB_PREFIXES = (
     'args', 'body_bytes_sent', 'content_type', 'content_length', 'host', 'http_referrer',
@@ -65,6 +63,10 @@ def isfloat(str):
         return False
 
 
+# nginx's output cannot be properly parsed by any parser I tried
+NGINX_SYSLOG = re.compile(r'\A\<[0-9]{1,3}\>.*?: (?P<message>.+)\Z')
+
+
 class SyslogProtocol(asyncio.DatagramProtocol):
     def __init__(self, db):
         super().__init__()
@@ -74,15 +76,15 @@ class SyslogProtocol(asyncio.DatagramProtocol):
         self.transport = transport
 
     def datagram_received(self, data, addr):
-        try:
-            data = parse(data.decode('utf-8'))
-        except MessageFormatError as e:
-            print(e, file=sys.stderr)
+        match = NGINX_SYSLOG.match(data.decode('utf-8'))
+
+        if not match or not match.group('message'):
+            print(('bad', data), file=sys.stderr)
             return
 
         try:
             # XXX: Who is guilty, syslog_parse or nginx?
-            content = json.loads(data.digest + ': ' + data.content)
+            content = json.loads(match.group('message'))
         except JSONDecodeError as e:
             print(e, file=sys.stderr)
             return
