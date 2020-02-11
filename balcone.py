@@ -342,7 +342,7 @@ class HelloProtocol(asyncio.Protocol):
 
 
 def main():
-    db_root = plyvel.DB('access', create_if_missing=True)
+    db_root = plyvel.DB('db', create_if_missing=True)
     db = DBdict(db_root)
 
     reader = geolite2.reader()
