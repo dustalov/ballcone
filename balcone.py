@@ -8,6 +8,7 @@ import re
 import statistics
 import sys
 import uuid
+from array import array
 from collections import Counter, defaultdict
 from datetime import datetime, timedelta
 from json import JSONDecodeError
@@ -180,24 +181,16 @@ class HelloProtocol(asyncio.Protocol):
         response = None
 
         if command == 'time':
-            values = []
-
-            for value in db.iterator(include_key=False):
-                record = record_capnp.Record.from_bytes_packed(value)
-
-                values.append(record.time)
+            values = array('f', (record_capnp.Record.from_bytes_packed(value).time
+                                 for value in db.iterator(include_key=False)))
 
             count, mean, median = len(values), statistics.mean(values), statistics.median(values)
 
             response = 'count={:d}\tmean={:.2f}\tmedian={:.2f}'.format(count, mean, median)
 
         if command == 'bytes':
-            values = []
-
-            for value in db.iterator(include_key=False):
-                record = record_capnp.Record.from_bytes_packed(value)
-
-                values.append(float(record.body))
+            values = array('f', (record_capnp.Record.from_bytes_packed(value).body
+                                 for value in db.iterator(include_key=False)))
 
             count, mean, median = len(values), statistics.mean(values), statistics.median(values)
 
