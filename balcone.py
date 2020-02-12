@@ -84,10 +84,16 @@ class SyslogProtocol(asyncio.DatagramProtocol):
         self.transport = transport
 
     def datagram_received(self, data: bytes, addr):
-        match = NGINX_SYSLOG.match(data.decode('utf-8'))
+        try:
+            data = data.decode('utf-8')
+        except UnicodeDecodeError as e:
+            print(e, file=sys.stderr)
+            return
+
+        match = NGINX_SYSLOG.match(data)
 
         if not match or not match.group('message'):
-            print(('bad', data), file=sys.stderr)
+            print('Malformed data: %s' % data, file=sys.stderr)
             return
 
         try:
@@ -153,7 +159,7 @@ class HelloProtocol(asyncio.Protocol):
         try:
             message = data.decode('ascii')
         except UnicodeDecodeError as e:
-            print(e)
+            print(e, file=sys.stderr)
             self.transport.close()
             return
 
