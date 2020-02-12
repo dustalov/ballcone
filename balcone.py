@@ -9,7 +9,7 @@ import statistics
 import sys
 import uuid
 from array import array
-from collections import Counter, defaultdict
+from collections import namedtuple, Counter, defaultdict
 from datetime import datetime, timedelta
 from json import JSONDecodeError
 
@@ -17,8 +17,24 @@ from json import JSONDecodeError
 import capnp
 import httpagentparser
 import plyvel
-import record_capnp
 from geolite2 import geolite2
+from record_capnp import Record
+
+Entry = namedtuple('Entry', 'field ftype')
+
+
+def cast_ftype(ftype):
+    if 'int' in ftype:
+        return int
+    if 'float' in ftype:
+        return float
+    return str
+
+
+# XXX: Is there a better way for retrieving field types and $nginx annotation?
+ENTRIES = {field.name: Entry(field.annotations[0].value.text if len(field.annotations) > 0 else None,
+                             cast_ftype(next(iter(field.slot.type.to_dict()))))
+           for field in Record.schema.node.struct.fields}
 
 
 class DBdict(defaultdict):
@@ -91,49 +107,24 @@ class SyslogProtocol(asyncio.DatagramProtocol):
 
         key = b'%d\t%b' % (timestamp, request_id.bytes)
 
-        record = record_capnp.Record.new_message()
+        record = Record.new_message()
 
-        if 'args' in content and content['args']:
-            record.args = content['args']
+        for attr, (field, ftype) in ENTRIES.items():
+            if field not in content:
+                continue
 
-        if 'body_bytes_sent' in content and isint(content['body_bytes_sent']):
-            record.body = int(content['body_bytes_sent'])
+            value = content[field]
 
-        if 'content_type' in content and content['content_type']:
-            record.contentType = content['content_type']
+            if not value:
+                continue
 
-        if 'content_length' in content and isint(content['content_length']):
-            record.contentLength = int(content['content_length'])
+            if ftype == int and not isint(value):
+                continue
 
-        if 'host' in content and content['host']:
-            record.host = content['host']
+            if ftype == float and not isfloat(value):
+                continue
 
-        if 'http_referrer' in content and content['http_referrer']:
-            record.referrer = content['http_referrer']
-
-        if 'http_user_agent' in content and content['http_user_agent']:
-            record.userAgent = content['http_user_agent']
-
-        if 'http_x_forwarded_for' in content and content['http_x_forwarded_for']:
-            record.xForwardedFor = content['http_x_forwarded_for']
-
-        if 'remote_addr' in content and content['remote_addr']:
-            record.remote = content['remote_addr']
-
-        if 'request_method' in content and content['request_method']:
-            record.method = content['request_method']
-
-        if 'request_time' in content and isfloat(content['request_time']):
-            record.time = float(content['request_time'])
-
-        if 'status' in content and isint(content['status']):
-            record.status = int(content['status'])
-
-        if 'upstream_addr' in content and content['upstream_addr']:
-            record.upstream = content['upstream_addr']
-
-        if 'uri' in content and content['uri']:
-            record.uri = content['uri']
+            setattr(record, attr, ftype(value))
 
         db.put(key, record.to_bytes_packed())
 
@@ -181,7 +172,7 @@ class HelloProtocol(asyncio.Protocol):
         response = None
 
         if command == 'time':
-            values = array('f', (record_capnp.Record.from_bytes_packed(value).time
+            values = array('f', (Record.from_bytes_packed(value).time
                                  for value in db.iterator(include_key=False)))
 
             count, mean, median = len(values), statistics.mean(values), statistics.median(values)
@@ -189,7 +180,7 @@ class HelloProtocol(asyncio.Protocol):
             response = 'count={:d}\tmean={:.2f}\tmedian={:.2f}'.format(count, mean, median)
 
         if command == 'bytes':
-            values = array('f', (record_capnp.Record.from_bytes_packed(value).body
+            values = array('f', (Record.from_bytes_packed(value).body
                                  for value in db.iterator(include_key=False)))
 
             count, mean, median = len(values), statistics.mean(values), statistics.median(values)
@@ -200,7 +191,7 @@ class HelloProtocol(asyncio.Protocol):
             values = Counter()
 
             for value in db.iterator(include_key=False):
-                record = record_capnp.Record.from_bytes_packed(value)
+                record = Record.from_bytes_packed(value)
 
                 os, _ = httpagentparser.simple_detect(record.userAgent)
 
@@ -217,7 +208,7 @@ class HelloProtocol(asyncio.Protocol):
             values = Counter()
 
             for value in db.iterator(include_key=False):
-                record = record_capnp.Record.from_bytes_packed(value)
+                record = Record.from_bytes_packed(value)
 
                 _, browser = httpagentparser.simple_detect(record.userAgent)
 
@@ -234,7 +225,7 @@ class HelloProtocol(asyncio.Protocol):
             values = Counter()
 
             for value in db.iterator(include_key=False):
-                record = record_capnp.Record.from_bytes_packed(value)
+                record = Record.from_bytes_packed(value)
 
                 values[record.uri] += 1
 
@@ -249,7 +240,7 @@ class HelloProtocol(asyncio.Protocol):
             values = Counter()
 
             for value in db.iterator(include_key=False):
-                record = record_capnp.Record.from_bytes_packed(value)
+                record = Record.from_bytes_packed(value)
 
                 values[record.remote] += 1
 
@@ -264,7 +255,7 @@ class HelloProtocol(asyncio.Protocol):
             values = Counter()
 
             for value in db.iterator(include_key=False):
-                record = record_capnp.Record.from_bytes_packed(value)
+                record = Record.from_bytes_packed(value)
 
                 geo = self.reader.get(record.remote)
 
@@ -328,7 +319,7 @@ class HelloProtocol(asyncio.Protocol):
 
                 date = datetime.utcfromtimestamp(int(timestamp) / 1000)
 
-                record = record_capnp.Record.from_bytes_packed(value)
+                record = Record.from_bytes_packed(value)
 
                 unique[date.strftime('%Y-%m-%d')].add(record.remote)
 
