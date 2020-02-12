@@ -72,6 +72,8 @@ def isfloat(str: str):
 # nginx's output cannot be properly parsed by any parser I tried
 NGINX_SYSLOG = re.compile(r'\A\<[0-9]{1,3}\>.*?: (?P<message>.+)\Z')
 
+VALID_SERVICE = re.compile(r'\A[\S]+\Z')
+
 
 class SyslogProtocol(asyncio.DatagramProtocol):
     def __init__(self, db: DBdict):
@@ -99,6 +101,10 @@ class SyslogProtocol(asyncio.DatagramProtocol):
             return
         else:
             service = content['service'].strip().lower()
+
+        if not VALID_SERVICE.match(service):
+            print('Bad service: %s' % service, file=sys.stderr)
+            return
 
         db = self.db[service]
 
@@ -163,7 +169,7 @@ class HelloProtocol(asyncio.Protocol):
         command, service, parameter = match.group('command'), match.group('service'), match.group('parameter')
         print((command, service, parameter))
 
-        if not service or not command:
+        if not service or not VALID_SERVICE.match(service) or not command:
             self.transport.close()
             return
 
