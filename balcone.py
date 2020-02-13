@@ -9,9 +9,14 @@ import statistics
 import sys
 import uuid
 from array import array
+from calendar import timegm
 from collections import namedtuple, Counter, defaultdict
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
+from itertools import groupby
 from json import JSONDecodeError
+from operator import itemgetter
+from time import gmtime
+from typing import Type, Union, Callable
 
 # noinspection PyUnresolvedReferences
 import capnp
@@ -36,6 +41,9 @@ ENTRIES = {field.name: Entry(field.annotations[0].value.text if len(field.annota
                              cast_ftype(next(iter(field.slot.type.to_dict()))))
            for field in Record.schema.node.struct.fields}
 
+DateRecord = namedtuple('DateRecord', 'date record')
+Average = namedtuple('Average', 'count mean median')
+
 
 class DBdict(defaultdict):
     def __init__(self, db: plyvel.DB):
@@ -45,6 +53,63 @@ class DBdict(defaultdict):
     def __missing__(self, key: str):
         self[key] = self.db.prefixed_db(b'%b\t' % key.encode('utf-8'))
         return self[key]
+
+    def count(self, service: str, field: Type[Union[str, Callable, type(None)]], start: date, stop: date):
+        db = self[service]
+
+        result = {}
+
+        if callable(field):
+            def _getattr(r, _):
+                return field(r)
+        elif isinstance(field, str):
+            _getattr = getattr
+        else:
+            # field=None means COUNT(*), where None denotes the *
+            _getattr = lambda *x: None
+
+        for current, group in groupby(self.traverse(db, start, stop), key=itemgetter(0)):
+            result[current] = Counter()
+
+            for _, record in group:
+                result[current][_getattr(record, field)] += 1
+
+        return result
+
+    def average(self, service: str, field: str, start: date, stop: date):
+        db = self[service]
+
+        result = {}
+
+        for current, group in groupby(self.traverse(db, start, stop), key=itemgetter(0)):
+            values = array('f', (getattr(record, field) for _, record in group))
+
+            result[current] = Average(len(values), statistics.mean(values), statistics.median(values))
+
+        return result
+
+    @staticmethod
+    def traverse(db: plyvel.DB, start: date, stop: date, include_value=True):
+        # We need to iterate right before the next day after stop
+        stop = stop + timedelta(days=1)
+
+        start_ts, stop_ts = timegm(start.timetuple()) * 1000, timegm(stop.timetuple()) * 1000
+
+        start_key, stop_key = b'%d\t' % start_ts, b'%d\t' % stop_ts
+
+        for key_or_key_value in db.iterator(start=start_key, stop=stop_key, include_value=include_value):
+            if include_value:
+                key, value = key_or_key_value
+                record = Record.from_bytes_packed(value)
+            else:
+                key = key_or_key_value
+                record = None
+
+            current_ts, _, _ = key.partition(b'\t')
+
+            current = date(*gmtime(int(current_ts) // 1000)[:3])
+
+            yield DateRecord(current, record)
 
 
 def isint(str: str):
@@ -179,163 +244,94 @@ class HelloProtocol(asyncio.Protocol):
             self.transport.close()
             return
 
-        db = self.db[service]
+        stop = datetime.utcnow().date()
+        start = stop - timedelta(days=7)
 
         response = None
 
         if command == 'time':
-            values = array('f', (Record.from_bytes_packed(value).time
-                                 for value in db.iterator(include_key=False)))
-
-            count, mean, median = len(values), statistics.mean(values), statistics.median(values)
-
-            response = 'count={:d}\tmean={:.2f}\tmedian={:.2f}'.format(count, mean, median)
+            response = str(self.db.average(service, 'time', start, stop))
 
         if command == 'bytes':
-            values = array('f', (Record.from_bytes_packed(value).body
-                                 for value in db.iterator(include_key=False)))
-
-            count, mean, median = len(values), statistics.mean(values), statistics.median(values)
-
-            response = 'count={:d}\tmean={:.2f}\tmedian={:.2f}'.format(count, mean, median)
+            response = str(self.db.average(service, 'body', start, stop))
 
         if command == 'os':
-            values = Counter()
-
-            for value in db.iterator(include_key=False):
-                record = Record.from_bytes_packed(value)
-
-                os, _ = httpagentparser.simple_detect(record.userAgent)
-
-                values[os] += 1
+            result = self.db.count(service, lambda r: httpagentparser.simple_detect(r.userAgent)[0], start, stop)
 
             if isint(parameter):
                 count = int(parameter)
             else:
                 count = 10
 
-            response = '\n'.join(['{}: {:d}'.format(os, found) for os, found in values.most_common(count)])
+            response = str({d: counter.most_common(count) for d, counter in result.items()})
 
         if command == 'browser':
-            values = Counter()
-
-            for value in db.iterator(include_key=False):
-                record = Record.from_bytes_packed(value)
-
-                _, browser = httpagentparser.simple_detect(record.userAgent)
-
-                values[browser] += 1
+            result = self.db.count(service, lambda r: httpagentparser.simple_detect(r.userAgent)[1], start, stop)
 
             if isint(parameter):
                 count = int(parameter)
             else:
                 count = 10
 
-            response = '\n'.join(['{}: {:d}'.format(browser, found) for browser, found in values.most_common(count)])
+            response = str({d: counter.most_common(count) for d, counter in result.items()})
 
         if command == 'uri':
-            values = Counter()
-
-            for value in db.iterator(include_key=False):
-                record = Record.from_bytes_packed(value)
-
-                values[record.uri] += 1
+            result = self.db.count(service, 'uri', start, stop)
 
             if isint(parameter):
                 count = int(parameter)
             else:
                 count = 10
 
-            response = '\n'.join(['{}: {:d}'.format(uri, found) for uri, found in values.most_common(count)])
+            response = str({d: counter.most_common(count) for d, counter in result.items()})
 
         if command == 'ip':
-            values = Counter()
-
-            for value in db.iterator(include_key=False):
-                record = Record.from_bytes_packed(value)
-
-                values[record.remote] += 1
+            result = self.db.count(service, 'ip', start, stop)
 
             if isint(parameter):
                 count = int(parameter)
             else:
                 count = 10
 
-            response = '\n'.join(['{}: {:d}'.format(uri, found) for uri, found in values.most_common(count)])
+            response = str({d: counter.most_common(count) for d, counter in result.items()})
 
         if command == 'country':
-            values = Counter()
-
-            for value in db.iterator(include_key=False):
-                record = Record.from_bytes_packed(value)
-
+            def iso_code(record):
                 geo = self.reader.get(record.remote)
 
-                if geo and 'country' in geo and 'iso_code' in geo['country']:
-                    values[geo['country']['iso_code']] += 1
+                if geo and 'country' in geo:
+                    return geo['country'].get('iso_code', 'UNKNOWN')
                 else:
-                    values['UNKNOWN'] += 1
+                    return 'UNKNOWN'
+
+            result = self.db.count(service, iso_code, start, stop)
 
             if isint(parameter):
                 count = int(parameter)
             else:
                 count = 10
 
-            response = '\n'.join(['{}: {:d}'.format(uri, found) for uri, found in values.most_common(count)])
+            response = str({d: counter.most_common(count) for d, counter in result.items()})
 
         if command == 'visits':
+            result = self.db.count(service, None, start, stop)
+
             if isint(parameter):
-                delta = int(parameter)
+                count = int(parameter)
             else:
-                delta = 7
+                count = 10
 
-            present = datetime.utcnow()
-            past = present - timedelta(days=delta)
-
-            past_ts, present_ts = round(past.timestamp() * 1000), round(present.timestamp() * 1000)
-            past_key, present_key = b'%d' % past_ts, b'%d' % (present_ts + 1)
-
-            visits = Counter()
-
-            for key in db.iterator(start=past_key, stop=present_key, include_value=False):
-                timestamp, _, _ = key.partition(b'\t')
-
-                if not isint(timestamp):
-                    continue
-
-                date = datetime.utcfromtimestamp(int(timestamp) / 1000)
-
-                visits[date.strftime('%Y-%m-%d')] += 1
-
-            response = '\n'.join(['{}: {:d}'.format(*pair) for pair in visits.items()])
+            response = str({d: counter.most_common(count) for d, counter in result.items()})
 
         if command == 'unique':
+            result = self.db.count(service, lambda r: r.remote, start, stop)
+
             if isint(parameter):
-                delta = int(parameter)
+                count = int(parameter)
             else:
-                delta = 7
+                count = 10
 
-            present = datetime.utcnow()
-            past = present - timedelta(days=delta)
-
-            past_ts, present_ts = round(past.timestamp() * 1000), round(present.timestamp() * 1000)
-            past_key, present_key = b'%d' % past_ts, b'%d' % (present_ts + 1)
-
-            unique = defaultdict(set)
-
-            for key, value in db.iterator(start=past_key, stop=present_key):
-                timestamp, _, _ = key.partition(b'\t')
-
-                if not isint(timestamp):
-                    continue
-
-                date = datetime.utcfromtimestamp(int(timestamp) / 1000)
-
-                record = Record.from_bytes_packed(value)
-
-                unique[date.strftime('%Y-%m-%d')].add(record.remote)
-
-            response = '\n'.join(['{}: {:d}'.format(date, len(ips)) for date, ips in unique.items()])
+            response = str({d: counter.most_common(count) for d, counter in result.items()})
 
         if response:
             self.transport.write(response.encode('utf-8'))
