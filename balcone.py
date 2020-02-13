@@ -89,8 +89,9 @@ class DBdict(defaultdict):
 
         return result
 
+    # noinspection PyProtectedMember
     @staticmethod
-    def traverse(db: plyvel.DB, start: date, stop: date, include_value=True):
+    def traverse(db: plyvel._plyvel.PrefixedDB, start: date, stop: date, include_value=True):
         # We need to iterate right before the next day after stop
         stop = stop + timedelta(days=1)
 
