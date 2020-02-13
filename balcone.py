@@ -68,7 +68,8 @@ class DBdict(defaultdict):
             # field=None means COUNT(*), where None denotes the *
             _getattr = lambda *x: None
 
-        for current, group in groupby(self.traverse(db, start, stop), key=itemgetter(0)):
+        for current, group in groupby(self.traverse(db, start, stop, include_value=field is not None),
+                                      key=itemgetter(0)):
             result[current] = Counter()
 
             for _, record in group:
