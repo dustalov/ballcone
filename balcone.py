@@ -4,13 +4,14 @@ __author__ = 'Dmitry Ustalov'
 
 import asyncio
 import json
+import logging
 import re
 import statistics
 import sys
 import uuid
 from array import array
 from calendar import timegm
-from collections import namedtuple, Counter, defaultdict
+from collections import namedtuple, defaultdict, Counter
 from datetime import date, datetime, timedelta
 from itertools import groupby
 from json import JSONDecodeError
@@ -24,6 +25,8 @@ import httpagentparser
 import plyvel
 from geolite2 import geolite2
 from record_capnp import Record
+
+logging.basicConfig(format='%(asctime)s %(message)s', level=logging.DEBUG)
 
 Entry = namedtuple('Entry', 'field ftype')
 
@@ -153,30 +156,30 @@ class SyslogProtocol(asyncio.DatagramProtocol):
     def datagram_received(self, data: bytes, addr):
         try:
             data = data.decode('utf-8')
-        except UnicodeDecodeError as e:
-            print(e, file=sys.stderr)
+        except UnicodeDecodeError:
+            logging.info('Malformed UTF-8 received from {}'.format(addr))
             return
 
         match = NGINX_SYSLOG.match(data)
 
         if not match or not match.group('message'):
-            print('Malformed data: %s' % data, file=sys.stderr)
+            logging.info('Missing payload from {}: {}'.format(addr, data))
             return
 
         try:
             content = json.loads(match.group('message'))
-        except JSONDecodeError as e:
-            print(e, file=sys.stderr)
+        except JSONDecodeError:
+            logging.info('Malformed JSON received from {}: {}'.format(addr, data))
             return
 
         if 'service' not in content or not content['service']:
-            print('Missing the service field', file=sys.stderr)
+            logging.info('Missing service field from {}: {}'.format(addr, data))
             return
         else:
             service = content['service'].strip().lower()
 
         if not VALID_SERVICE.match(service):
-            print('Bad service: %s' % service, file=sys.stderr)
+            logging.info('Malformed service field from {}: {}'.format(addr, data))
             return
 
         db = self.db[service]
@@ -207,7 +210,7 @@ class SyslogProtocol(asyncio.DatagramProtocol):
 
         db.put(key, record.to_bytes_packed())
 
-        print((request_id.hex, record))
+        logging.debug('Entry {}: {}'.format(request_id.hex, record.to_dict()))
 
 
 HELLO_FORMAT = re.compile(r'\A(?P<command>[^\s]+?) (?P<service>[^\s]+?)(| (?P<parameter>[^\s]+))\n\Z')
@@ -225,8 +228,8 @@ class HelloProtocol(asyncio.Protocol):
     def data_received(self, data: bytes):
         try:
             message = data.decode('ascii')
-        except UnicodeDecodeError as e:
-            print(e, file=sys.stderr)
+        except UnicodeDecodeError:
+            logging.info('Malformed ASCII received')
             self.transport.close()
             return
 
@@ -240,7 +243,8 @@ class HelloProtocol(asyncio.Protocol):
             return
 
         command, service, parameter = match.group('command'), match.group('service'), match.group('parameter')
-        print((command, service, parameter))
+
+        logging.debug('Received command={} service={} parameter={}'.format(command, service, parameter))
 
         if not service or not VALID_SERVICE.match(service) or not command:
             self.transport.close()
