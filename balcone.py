@@ -152,7 +152,7 @@ class SyslogProtocol(asyncio.DatagramProtocol):
         super().__init__()
         self.db = db
 
-    def connection_made(self, transport):
+    def connection_made(self, transport: asyncio.BaseTransport):
         self.transport = transport
 
     def datagram_received(self, data: Union[bytes, str], addr: Tuple[str, int]):
