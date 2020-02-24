@@ -17,7 +17,7 @@ from itertools import groupby
 from json import JSONDecodeError
 from operator import itemgetter
 from time import gmtime
-from typing import Type, Union, Callable
+from typing import Dict, Tuple, Union, Optional, Callable, Generator, Counter as CounterType
 
 # noinspection PyUnresolvedReferences
 import capnp
@@ -57,10 +57,11 @@ class DBdict(defaultdict):
         self[key] = self.db.prefixed_db(b'%b\t' % key.encode('utf-8'))
         return self[key]
 
-    def count(self, service: str, field: Type[Union[str, Callable, type(None)]], start: date, stop: date):
+    def count(self, service: str, field: Optional[Union[str, Callable]],
+              start: date, stop: date) -> Dict[date, CounterType[str]]:
         db = self[service]
 
-        result = {}
+        result: Dict[date, CounterType[str]] = {}
 
         if callable(field):
             def _getattr(r, _):
@@ -79,10 +80,10 @@ class DBdict(defaultdict):
 
         return result
 
-    def average(self, service: str, field: str, start: date, stop: date):
+    def average(self, service: str, field: str, start: date, stop: date) -> Dict[date, Average]:
         db = self[service]
 
-        result = {}
+        result: Dict[date, Average] = {}
 
         for current, group in groupby(self.traverse(db, start, stop), key=itemgetter(0)):
             values = array('f', (getattr(record, field) for _, record in group))
@@ -93,7 +94,8 @@ class DBdict(defaultdict):
 
     # noinspection PyProtectedMember
     @staticmethod
-    def traverse(db: plyvel._plyvel.PrefixedDB, start: date, stop: date, include_value=True):
+    def traverse(db: plyvel._plyvel.PrefixedDB, start: date, stop: date,
+                 include_value=True) -> Generator[DateRecord, None, None]:
         # We need to iterate right before the next day after stop
         stop = stop + timedelta(days=1)
 
@@ -152,33 +154,33 @@ class SyslogProtocol(asyncio.DatagramProtocol):
     def connection_made(self, transport):
         self.transport = transport
 
-    def datagram_received(self, data: bytes, addr):
+    def datagram_received(self, data: Union[bytes, str], addr: Tuple[str, int]):
         try:
-            data = data.decode('utf-8')
+            message = data.decode('utf-8') if isinstance(data, bytes) else data
         except UnicodeDecodeError:
             logging.info('Malformed UTF-8 received from {}'.format(addr))
             return
 
-        match = NGINX_SYSLOG.match(data)
+        match = NGINX_SYSLOG.match(message)
 
         if not match or not match.group('message'):
-            logging.info('Missing payload from {}: {}'.format(addr, data))
+            logging.info('Missing payload from {}: {}'.format(addr, message))
             return
 
         try:
             content = json.loads(match.group('message'))
         except JSONDecodeError:
-            logging.info('Malformed JSON received from {}: {}'.format(addr, data))
+            logging.info('Malformed JSON received from {}: {}'.format(addr, message))
             return
 
         if 'service' not in content or not content['service']:
-            logging.info('Missing service field from {}: {}'.format(addr, data))
+            logging.info('Missing service field from {}: {}'.format(addr, message))
             return
         else:
             service = content['service'].strip().lower()
 
         if not VALID_SERVICE.match(service):
-            logging.info('Malformed service field from {}: {}'.format(addr, data))
+            logging.info('Malformed service field from {}: {}'.format(addr, message))
             return
 
         db = self.db[service]
