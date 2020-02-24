@@ -23,6 +23,7 @@ from typing import Dict, Tuple, Union, Optional, Callable, Generator, Counter as
 import capnp
 import httpagentparser
 import plyvel
+from aiohttp import web
 from geolite2 import geolite2
 from record_capnp import Record
 
@@ -347,6 +348,10 @@ class HelloProtocol(asyncio.Protocol):
         self.transport.close()
 
 
+async def home(request):
+    return web.Response(text='Balcone')
+
+
 def main():
     db_root = plyvel.DB('db', create_if_missing=True)
     db = DBdict(db_root)
@@ -360,6 +365,10 @@ def main():
 
     hello = loop.create_server(lambda: HelloProtocol(db, reader), host='127.0.0.1', port=8888)
     loop.run_until_complete(hello)
+
+    app = web.Application()
+    app.router.add_get('/', home)
+    web.run_app(app, host='127.0.0.1', port=8080)
 
     loop.run_forever()
 
