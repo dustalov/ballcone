@@ -224,7 +224,7 @@ class HelloProtocol(asyncio.Protocol):
         self.db = db
         self.reader = reader
 
-    def connection_made(self, transport):
+    def connection_made(self, transport: asyncio.BaseTransport):
         self.transport = transport
 
     def data_received(self, data: bytes):
