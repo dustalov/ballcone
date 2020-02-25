@@ -428,7 +428,7 @@ class HTTPHandler:
             n = int(parameter) if isint(parameter) else None
             response = self.balcone.unique(service, start, stop, n)
 
-        return web.Response(text=str(response))
+        return web.Response(text=str(response) + '\n')
 
 
 def main():
