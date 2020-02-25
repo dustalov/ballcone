@@ -17,7 +17,7 @@ from itertools import groupby
 from json import JSONDecodeError
 from operator import itemgetter
 from time import gmtime
-from typing import Dict, Tuple, Union, Optional, Callable, Generator, Counter as CounterType
+from typing import Type, Dict, Tuple, Union, Optional, Callable, Generator, Counter as CounterType, cast
 
 # noinspection PyUnresolvedReferences
 import capnp
@@ -32,7 +32,7 @@ logging.basicConfig(format='%(asctime)s %(message)s', level=logging.DEBUG)
 Entry = namedtuple('Entry', 'field ftype')
 
 
-def cast_ftype(ftype):
+def cast_ftype(ftype: str) -> Type:
     if 'int' in ftype:
         return int
     if 'float' in ftype:
@@ -119,7 +119,7 @@ class DBdict(defaultdict):
             yield DateRecord(current, record)
 
 
-def isint(str: str):
+def isint(str: str) -> bool:
     if not str:
         return False
 
@@ -130,7 +130,7 @@ def isint(str: str):
         return False
 
 
-def isfloat(str: str):
+def isfloat(str: str) -> bool:
     if not str:
         return False
 
@@ -225,7 +225,7 @@ class HelloProtocol(asyncio.Protocol):
         self.reader = reader
 
     def connection_made(self, transport: asyncio.BaseTransport):
-        self.transport = transport
+        self.transport = cast(asyncio.Transport, transport)
 
     def data_received(self, data: bytes):
         try:
@@ -348,7 +348,7 @@ class HelloProtocol(asyncio.Protocol):
         self.transport.close()
 
 
-async def home(request):
+async def home(request: web.Request):
     return web.Response(text='Balcone')
 
 
