@@ -172,7 +172,7 @@ class Balcone:
         return {d: counter.most_common(self.unwrap_n(n)) for d, counter in result.items()}
 
     def ip(self, service: str, start: date, stop: date, n: Optional[int]) -> Dict[date, List[Tuple[str, int]]]:
-        result = self.db.count(service, 'ip', start, stop)
+        result = self.db.count(service, 'remote', start, stop)
 
         return {d: counter.most_common(self.unwrap_n(n)) for d, counter in result.items()}
 
@@ -292,7 +292,7 @@ class SyslogProtocol(asyncio.DatagramProtocol):
 
         _, request_id = self.balcone.put(service, record)
 
-        logging.debug('Entry {}: {}'.format(request_id.hex, record.to_dict()))
+        logging.debug('Record {}: {}'.format(request_id.hex, record.to_dict()))
 
 
 HELLO_FORMAT = re.compile(r'\A(?P<command>[^\s]+?) (?P<service>[^\s]+?)(| (?P<parameter>[^\s]+))\n\Z')
@@ -377,8 +377,58 @@ class HelloProtocol(asyncio.Protocol):
         self.transport.close()
 
 
-async def home(request: web.Request):
-    return web.Response(text='Balcone')
+class HTTPHandler:
+    def __init__(self, balcone: Balcone):
+        self.balcone = balcone
+
+    async def home(self, request: web.Request):
+        return web.Response(text='Balcone')
+
+    async def query(self, request: web.Request):
+        service, command = request.match_info['service'], request.match_info['query']
+
+        stop = datetime.utcnow().date()
+        start = stop - timedelta(days=7)
+
+        parameter = request.query.get('parameter', None)
+
+        response: Optional[Union[Dict[date, Average], Dict[date, List[Tuple[str, int]]]]] = None
+
+        if command == 'time':
+            response = self.balcone.time(service, start, stop)
+
+        if command == 'bytes':
+            response = self.balcone.bytes(service, start, stop)
+
+        if command == 'os':
+            n = int(parameter) if isint(parameter) else None
+            response = self.balcone.os(service, start, stop, n)
+
+        if command == 'browser':
+            n = int(parameter) if isint(parameter) else None
+            response = self.balcone.browser(service, start, stop, n)
+
+        if command == 'uri':
+            n = int(parameter) if isint(parameter) else None
+            response = self.balcone.uri(service, start, stop, n)
+
+        if command == 'ip':
+            n = int(parameter) if isint(parameter) else None
+            response = self.balcone.ip(service, start, stop, n)
+
+        if command == 'country':
+            n = int(parameter) if isint(parameter) else None
+            response = self.balcone.country(service, start, stop, n)
+
+        if command == 'visits':
+            n = int(parameter) if isint(parameter) else None
+            response = self.balcone.visits(service, start, stop, n)
+
+        if command == 'unique':
+            n = int(parameter) if isint(parameter) else None
+            response = self.balcone.unique(service, start, stop, n)
+
+        return web.Response(text=str(response))
 
 
 def main():
@@ -398,7 +448,9 @@ def main():
     loop.run_until_complete(hello)
 
     app = web.Application()
-    app.router.add_get('/', home)
+    handler = HTTPHandler(balcone)
+    app.router.add_get('/', handler.home)
+    app.router.add_get('/{service}/{query}', handler.query)
     web.run_app(app, host='127.0.0.1', port=8080)
 
     loop.run_forever()
