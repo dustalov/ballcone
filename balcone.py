@@ -11,42 +11,56 @@ import sys
 import uuid
 from array import array
 from calendar import timegm
-from collections import namedtuple, defaultdict, Counter
+from collections import defaultdict, Counter
 from datetime import date, datetime, timedelta
+from functools import partial
 from itertools import groupby
 from json import JSONDecodeError
 from operator import itemgetter
 from time import gmtime
-from typing import Type, Dict, Tuple, Union, Optional, Callable, Generator, Counter as CounterType, cast
+from typing import cast, NamedTuple, Type, Dict, List, Tuple, Union, Optional, Callable, Generator, \
+    Counter as CounterType
 
 # noinspection PyUnresolvedReferences
 import capnp
 import httpagentparser
 import plyvel
 from aiohttp import web
-from geolite2 import geolite2
+from geolite2 import geolite2, maxminddb
 from record_capnp import Record
 
 logging.basicConfig(format='%(asctime)s %(message)s', level=logging.DEBUG)
 
-Entry = namedtuple('Entry', 'field ftype')
+
+class Entry(NamedTuple):
+    field: str
+    ftype: Type
+
+
+class DateRecord(NamedTuple):
+    date: date
+    record: 'Record'
+
+
+class Average(NamedTuple):
+    length: int
+    mean: float
+    median: float
 
 
 def cast_ftype(ftype: str) -> Type:
     if 'int' in ftype:
         return int
-    if 'float' in ftype:
+    elif 'float' in ftype:
         return float
-    return str
+    else:
+        return str
 
 
 # XXX: Is there a better way for retrieving field types and $nginx annotation?
 ENTRIES = {field.name: Entry(field.annotations[0].value.text if len(field.annotations) > 0 else None,
                              cast_ftype(next(iter(field.slot.type.to_dict()))))
            for field in Record.schema.node.struct.fields}
-
-DateRecord = namedtuple('DateRecord', 'date record')
-Average = namedtuple('Average', 'count mean median')
 
 
 class DBdict(defaultdict):
@@ -119,6 +133,79 @@ class DBdict(defaultdict):
             yield DateRecord(current, record)
 
 
+class Balcone:
+    N = 10
+
+    def __init__(self, db: DBdict, reader: maxminddb.reader.Reader):
+        self.db = db
+        self.reader = reader
+
+    def put(self, service: str, record: Record) -> Tuple[int, uuid.UUID]:
+        timestamp = round(datetime.utcnow().timestamp() * 1000)
+        request_id = uuid.uuid4()
+
+        key = b'%d\t%b' % (timestamp, request_id.bytes)
+
+        self.db[service].put(key, record.to_bytes_packed())
+
+        return timestamp, request_id
+
+    def time(self, service: str, start: date, stop: date) -> Dict[date, Average]:
+        return self.db.average(service, 'time', start, stop)
+
+    def bytes(self, service: str, start: date, stop: date) -> Dict[date, Average]:
+        return self.db.average(service, 'body', start, stop)
+
+    def os(self, service: str, start: date, stop: date, n: Optional[int]) -> Dict[date, List[Tuple[str, int]]]:
+        result = self.db.count(service, lambda r: httpagentparser.simple_detect(r.userAgent)[0], start, stop)
+
+        return {d: counter.most_common(self.unwrap_n(n)) for d, counter in result.items()}
+
+    def browser(self, service: str, start: date, stop: date, n: Optional[int]) -> Dict[date, List[Tuple[str, int]]]:
+        result = self.db.count(service, lambda r: httpagentparser.simple_detect(r.userAgent)[1], start, stop)
+
+        return {d: counter.most_common(self.unwrap_n(n)) for d, counter in result.items()}
+
+    def uri(self, service: str, start: date, stop: date, n: Optional[int]) -> Dict[date, List[Tuple[str, int]]]:
+        result = self.db.count(service, 'uri', start, stop)
+
+        return {d: counter.most_common(self.unwrap_n(n)) for d, counter in result.items()}
+
+    def ip(self, service: str, start: date, stop: date, n: Optional[int]) -> Dict[date, List[Tuple[str, int]]]:
+        result = self.db.count(service, 'ip', start, stop)
+
+        return {d: counter.most_common(self.unwrap_n(n)) for d, counter in result.items()}
+
+    def country(self, service: str, start: date, stop: date, n: Optional[int]) -> Dict[date, List[Tuple[str, int]]]:
+        iso_code_partial = partial(self.iso_code, reader=self.reader)
+        result = self.db.count(service, iso_code_partial, start, stop)
+
+        return {d: counter.most_common(self.unwrap_n(n)) for d, counter in result.items()}
+
+    def visits(self, service: str, start: date, stop: date, n: Optional[int]) -> Dict[date, List[Tuple[str, int]]]:
+        result = self.db.count(service, None, start, stop)
+
+        return {d: counter.most_common(self.unwrap_n(n)) for d, counter in result.items()}
+
+    def unique(self, service: str, start: date, stop: date, n: Optional[int]) -> Dict[date, List[Tuple[str, int]]]:
+        result = self.db.count(service, lambda r: r.remote, start, stop)
+
+        return {d: counter.most_common(self.unwrap_n(n)) for d, counter in result.items()}
+
+    @staticmethod
+    def unwrap_n(n: Optional[int]) -> int:
+        return n if n else Balcone.N
+
+    @staticmethod
+    def iso_code(reader: maxminddb.reader.Reader, record: Record) -> str:
+        geo = reader.get(record.remote)
+
+        if geo and 'country' in geo:
+            return geo['country'].get('iso_code', 'UNKNOWN')
+        else:
+            return 'UNKNOWN'
+
+
 def isint(str: str) -> bool:
     if not str:
         return False
@@ -148,9 +235,9 @@ VALID_SERVICE = re.compile(r'\A[\S]+\Z')
 
 
 class SyslogProtocol(asyncio.DatagramProtocol):
-    def __init__(self, db: DBdict):
+    def __init__(self, balcone: Balcone):
         super().__init__()
-        self.db = db
+        self.balcone = balcone
 
     def connection_made(self, transport: asyncio.BaseTransport):
         self.transport = transport
@@ -184,13 +271,6 @@ class SyslogProtocol(asyncio.DatagramProtocol):
             logging.info('Malformed service field from {}: {}'.format(addr, message))
             return
 
-        db = self.db[service]
-
-        timestamp = round(datetime.utcnow().timestamp() * 1000)
-        request_id = uuid.uuid4()
-
-        key = b'%d\t%b' % (timestamp, request_id.bytes)
-
         record = Record.new_message()
 
         for attr, (field, ftype) in ENTRIES.items():
@@ -210,7 +290,7 @@ class SyslogProtocol(asyncio.DatagramProtocol):
 
             setattr(record, attr, ftype(value))
 
-        db.put(key, record.to_bytes_packed())
+        _, request_id = self.balcone.put(service, record)
 
         logging.debug('Entry {}: {}'.format(request_id.hex, record.to_dict()))
 
@@ -219,10 +299,9 @@ HELLO_FORMAT = re.compile(r'\A(?P<command>[^\s]+?) (?P<service>[^\s]+?)(| (?P<pa
 
 
 class HelloProtocol(asyncio.Protocol):
-    def __init__(self, db: DBdict, reader):
+    def __init__(self, balcone: Balcone):
         super().__init__()
-        self.db = db
-        self.reader = reader
+        self.balcone = balcone
 
     def connection_made(self, transport: asyncio.BaseTransport):
         self.transport = cast(asyncio.Transport, transport)
@@ -258,88 +337,38 @@ class HelloProtocol(asyncio.Protocol):
         response = None
 
         if command == 'time':
-            response = str(self.db.average(service, 'time', start, stop))
+            response = str(self.balcone.time(service, start, stop))
 
         if command == 'bytes':
-            response = str(self.db.average(service, 'body', start, stop))
+            response = str(self.balcone.bytes(service, start, stop))
 
         if command == 'os':
-            result = self.db.count(service, lambda r: httpagentparser.simple_detect(r.userAgent)[0], start, stop)
-
-            if isint(parameter):
-                count = int(parameter)
-            else:
-                count = 10
-
-            response = str({d: counter.most_common(count) for d, counter in result.items()})
+            n = int(parameter) if isint(parameter) else None
+            response = str(self.balcone.os(service, start, stop, n))
 
         if command == 'browser':
-            result = self.db.count(service, lambda r: httpagentparser.simple_detect(r.userAgent)[1], start, stop)
-
-            if isint(parameter):
-                count = int(parameter)
-            else:
-                count = 10
-
-            response = str({d: counter.most_common(count) for d, counter in result.items()})
+            n = int(parameter) if isint(parameter) else None
+            response = str(self.balcone.browser(service, start, stop, n))
 
         if command == 'uri':
-            result = self.db.count(service, 'uri', start, stop)
-
-            if isint(parameter):
-                count = int(parameter)
-            else:
-                count = 10
-
-            response = str({d: counter.most_common(count) for d, counter in result.items()})
+            n = int(parameter) if isint(parameter) else None
+            response = str(self.balcone.uri(service, start, stop, n))
 
         if command == 'ip':
-            result = self.db.count(service, 'ip', start, stop)
-
-            if isint(parameter):
-                count = int(parameter)
-            else:
-                count = 10
-
-            response = str({d: counter.most_common(count) for d, counter in result.items()})
+            n = int(parameter) if isint(parameter) else None
+            response = str(self.balcone.ip(service, start, stop, n))
 
         if command == 'country':
-            def iso_code(record):
-                geo = self.reader.get(record.remote)
-
-                if geo and 'country' in geo:
-                    return geo['country'].get('iso_code', 'UNKNOWN')
-                else:
-                    return 'UNKNOWN'
-
-            result = self.db.count(service, iso_code, start, stop)
-
-            if isint(parameter):
-                count = int(parameter)
-            else:
-                count = 10
-
-            response = str({d: counter.most_common(count) for d, counter in result.items()})
+            n = int(parameter) if isint(parameter) else None
+            response = str(self.balcone.country(service, start, stop, n))
 
         if command == 'visits':
-            result = self.db.count(service, None, start, stop)
-
-            if isint(parameter):
-                count = int(parameter)
-            else:
-                count = 10
-
-            response = str({d: counter.most_common(count) for d, counter in result.items()})
+            n = int(parameter) if isint(parameter) else None
+            response = str(self.balcone.visits(service, start, stop, n))
 
         if command == 'unique':
-            result = self.db.count(service, lambda r: r.remote, start, stop)
-
-            if isint(parameter):
-                count = int(parameter)
-            else:
-                count = 10
-
-            response = str({d: counter.most_common(count) for d, counter in result.items()})
+            n = int(parameter) if isint(parameter) else None
+            response = str(self.balcone.unique(service, start, stop, n))
 
         if response:
             self.transport.write(response.encode('utf-8'))
@@ -358,12 +387,14 @@ def main():
 
     reader = geolite2.reader()
 
+    balcone = Balcone(db, reader)
+
     loop = asyncio.get_event_loop()
 
-    syslog = loop.create_datagram_endpoint(lambda: SyslogProtocol(db), local_addr=('127.0.0.1', 65140))
+    syslog = loop.create_datagram_endpoint(lambda: SyslogProtocol(balcone), local_addr=('127.0.0.1', 65140))
     loop.run_until_complete(syslog)
 
-    hello = loop.create_server(lambda: HelloProtocol(db, reader), host='127.0.0.1', port=8888)
+    hello = loop.create_server(lambda: HelloProtocol(balcone), host='127.0.0.1', port=8888)
     loop.run_until_complete(hello)
 
     app = web.Application()
@@ -372,6 +403,7 @@ def main():
 
     loop.run_forever()
 
+    reader.close()
     db_root.close()
 
 
