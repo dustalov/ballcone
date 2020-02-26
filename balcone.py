@@ -91,7 +91,7 @@ class DBdict(defaultdict):
             if current not in result:
                 result[current] = Counter()
 
-                result[current][_getattr(record, field)] += 1
+            result[current][_getattr(record, field)] += 1
 
         return result
 
