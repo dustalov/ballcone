@@ -296,7 +296,7 @@ class SyslogProtocol(asyncio.DatagramProtocol):
 HELLO_FORMAT = re.compile(r'\A(?P<command>[^\s]+?) (?P<service>[^\s]+?)(| (?P<parameter>[^\s]+))\n\Z')
 
 
-class HelloProtocol(asyncio.Protocol):
+class DebugProtocol(asyncio.Protocol):
     def __init__(self, balcone: Balcone):
         super().__init__()
         self.balcone = balcone
@@ -442,8 +442,8 @@ def main():
     syslog = loop.create_datagram_endpoint(lambda: SyslogProtocol(balcone), local_addr=('127.0.0.1', 65140))
     loop.run_until_complete(syslog)
 
-    hello = loop.create_server(lambda: HelloProtocol(balcone), host='127.0.0.1', port=8888)
-    loop.run_until_complete(hello)
+    debug = loop.create_server(lambda: DebugProtocol(balcone), host='127.0.0.1', port=8888)
+    loop.run_until_complete(debug)
 
     app = web.Application()
     handler = HTTPHandler(balcone)
