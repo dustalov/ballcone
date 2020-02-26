@@ -13,7 +13,6 @@ from array import array
 from calendar import timegm
 from collections import defaultdict, Counter
 from datetime import date, datetime, timedelta
-from functools import partial
 from itertools import groupby
 from json import JSONDecodeError
 from operator import itemgetter
@@ -177,8 +176,7 @@ class Balcone:
         return {d: counter.most_common(self.unwrap_n(n)) for d, counter in result.items()}
 
     def country(self, service: str, start: date, stop: date, n: Optional[int]) -> Dict[date, List[Tuple[str, int]]]:
-        iso_code_partial = partial(self.iso_code, reader=self.reader)
-        result = self.db.count(service, iso_code_partial, start, stop)
+        result = self.db.count(service, lambda record: self.iso_code(self.reader, record), start, stop)
 
         return {d: counter.most_common(self.unwrap_n(n)) for d, counter in result.items()}
 
