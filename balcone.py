@@ -20,9 +20,11 @@ from time import gmtime
 from typing import cast, NamedTuple, Type, Dict, List, Tuple, Union, Optional, Callable, Generator, \
     Counter as CounterType
 
+import aiohttp_jinja2
 # noinspection PyUnresolvedReferences
 import capnp
 import httpagentparser
+import jinja2
 import plyvel
 from aiohttp import web
 from geolite2 import geolite2, maxminddb
@@ -379,8 +381,9 @@ class HTTPHandler:
     def __init__(self, balcone: Balcone):
         self.balcone = balcone
 
+    @aiohttp_jinja2.template('home.html')
     async def home(self, request: web.Request):
-        return web.Response(text='Balcone')
+        pass
 
     async def query(self, request: web.Request):
         service, command = request.match_info['service'], request.match_info['query']
@@ -426,7 +429,14 @@ class HTTPHandler:
             n = int(parameter) if isint(parameter) else None
             response = self.balcone.unique(service, start, stop, n)
 
-        return web.Response(text=str(response) + '\n')
+        return web.json_response(self.stringify(response))
+
+    @staticmethod
+    def stringify(response: Optional[dict]) -> dict:
+        if response:
+            return {k.isoformat(): v for k, v in response.items()}
+        else:
+            return {}
 
 
 def main():
@@ -446,6 +456,7 @@ def main():
     loop.run_until_complete(debug)
 
     app = web.Application()
+    aiohttp_jinja2.setup(app, loader=jinja2.FileSystemLoader('templates'))
     handler = HTTPHandler(balcone)
     app.router.add_get('/', handler.home)
     app.router.add_get('/{service}/{query}', handler.query)

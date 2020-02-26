@@ -1,0 +1,38 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="columns">
+    <div class="column">
+        <canvas id="chart" style="height: 20em; width: 100%; display: block;"></canvas>
+    </div>
+</div>
+
+<script>
+var chart = new Chart($('#chart'), {
+    type: 'bar',
+    data: {
+        datasets: [{
+            label: '# of Visits',
+            borderWidth: 1
+        }]
+    }
+});
+
+window.chart = chart;
+
+$(document).ready(function() {
+    $.getJSON('/yarn/visits', function(data) {
+        console.log(data);
+
+        Object.keys(data).forEach(function(key) {
+            window.chart.data.labels.push(key);
+
+            window.chart.data.datasets.forEach(function(dataset) {
+                dataset.data.push(data[key][0][1]);
+            });
+        });
+
+        window.chart.update();
+    });
+});
+</script>
+{% endblock %}
