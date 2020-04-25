@@ -8,7 +8,7 @@ import re
 import sys
 from collections import defaultdict, deque
 from datetime import date, datetime, timedelta
-from ipaddress import ip_address
+from ipaddress import ip_address, IPv4Address, IPv6Address
 from typing import cast, Tuple, Union, Optional, Set, Dict, Deque, Any
 
 import aiohttp_jinja2
