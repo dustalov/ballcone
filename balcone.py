@@ -45,8 +45,7 @@ class Balcone:
         self.queue: Dict[str, Deque[Entry]] = defaultdict(deque)
 
     async def persist_timer(self):
-        while True:
-            await asyncio.sleep(self.DELAY)
+        while await asyncio.sleep(self.DELAY, result=True):
             self.persist()
 
     def persist(self):
@@ -337,6 +336,8 @@ def main():
 
     balcone = Balcone(dao, geoip)
 
+    asyncio.ensure_future(balcone.persist_timer())
+
     loop = asyncio.get_event_loop()
 
     syslog = loop.create_datagram_endpoint(lambda: SyslogProtocol(balcone), local_addr=('127.0.0.1', 65140))
@@ -344,9 +345,6 @@ def main():
 
     debug = loop.create_server(lambda: DebugProtocol(balcone), host='127.0.0.1', port=8888)
     loop.run_until_complete(debug)
-
-    persist_timer = loop.create_task(balcone.persist_timer())
-    loop.run_until_complete(persist_timer)
 
     app = web.Application()
     aiohttp_jinja2.setup(app, loader=jinja2.FileSystemLoader('templates'))
@@ -358,7 +356,14 @@ def main():
     try:
         loop.run_forever()
     finally:
+        for task in asyncio.Task.all_tasks():
+            task.cancel()
+
+            with asyncio.suppress(asyncio.CancelledError):
+                loop.run_until_complete(task)
+
         geoip.close()
+
         try:
             balcone.persist()
         finally:
