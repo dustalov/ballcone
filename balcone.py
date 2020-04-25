@@ -275,6 +275,9 @@ class HTTPHandler:
     async def service(self, request: web.Request):
         service = request.match_info.get('service')
 
+        if not self.check_service(service):
+            raise web.HTTPNotFound(text=f'No such service: {service}')
+
         stop = datetime.utcnow().date()
         start = stop - timedelta(days=6)
 
@@ -298,6 +301,9 @@ class HTTPHandler:
 
     async def query(self, request: web.Request):
         service, command = request.match_info['service'], request.match_info['query']
+
+        if not self.check_service(service):
+            raise web.HTTPNotFound(text=f'No such service: {service}')
 
         stop = datetime.utcnow().date()
         start = stop - timedelta(days=6)
@@ -339,6 +345,9 @@ class HTTPHandler:
             response = self.balcone.unique(service, start, stop)
 
         return web.json_response(response, dumps=self.encoder.encode)
+
+    def check_service(self, service: str) -> bool:
+        return VALID_SERVICE.match(service) and self.balcone.dao.table_exists(service)
 
 
 def main():
