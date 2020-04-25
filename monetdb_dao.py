@@ -1,8 +1,9 @@
 __author__ = 'Dmitry Ustalov'
 
 import logging
+from calendar import timegm
 from contextlib import contextmanager
-from datetime import date
+from datetime import datetime, date
 from ipaddress import ip_address, IPv4Address, IPv6Address
 from typing import Generator, NamedTuple, Optional, List, Sequence, Union, Any
 
@@ -11,6 +12,7 @@ from monetdblite.monetize import monet_escape, monet_identifier_escape
 
 
 class Entry(NamedTuple):
+    datetime: datetime
     date: date
     host: str
     method: str
@@ -21,7 +23,7 @@ class Entry(NamedTuple):
     referer: Optional[str]
     # IP address and derivatives
     ip: Union[IPv4Address, IPv6Address]
-    country_iso_name: str
+    country_iso_code: str
     # derivatives from User-Agent
     platform_name: Optional[str]
     platform_version: Optional[str]
@@ -109,6 +111,7 @@ class MonetDAO:
 
     def create_table(self, table: str):
         stmt = f'CREATE TABLE {monet_identifier_escape(self.schema)}.{monet_identifier_escape(table)} (' \
+               f'datetime BIGINT NOT NULL, ' \
                f'date INT NOT NULL, ' \
                f'host TEXT NOT NULL, ' \
                f'method TEXT NOT NULL, ' \
@@ -118,7 +121,7 @@ class MonetDAO:
                f'generation_time DOUBLE, ' \
                f'referer TEXT, ' \
                f'ip TEXT NOT NULL, ' \
-               f'country_iso_name TEXT NOT NULL, ' \
+               f'country_iso_code TEXT NOT NULL, ' \
                f'platform_name TEXT, ' \
                f'platform_version TEXT, ' \
                f'browser_name TEXT, ' \
@@ -157,7 +160,8 @@ class MonetDAO:
         if entries:
             with self.cursor() as cursor:
                 for entry in entries:
-                    count += self.insert_into(table, entry, cursor=cursor)
+                    self.insert_into(table, entry, cursor=cursor)
+                    count += 1
 
                 cursor.commit()
 
@@ -166,6 +170,7 @@ class MonetDAO:
     @staticmethod
     def value_entry(entry: Entry) -> str:
         return f'(' \
+               f'{monet_escape(timegm(entry.datetime.utctimetuple()))}, ' \
                f'{monet_escape(entry.date.toordinal())}, ' \
                f'{monet_escape(entry.host)}, ' \
                f'{monet_escape(entry.method)}, ' \
@@ -175,12 +180,12 @@ class MonetDAO:
                f'{monet_escape(entry.generation_time)}, ' \
                f'{monet_escape(entry.referer) if entry.referer else "NULL"}, ' \
                f'{monet_escape(entry.ip)}, ' \
-               f'{monet_escape(entry.country_iso_name)}, ' \
+               f'{monet_escape(entry.country_iso_code)}, ' \
                f'{monet_escape(entry.platform_name) if entry.platform_name else "NULL"}, ' \
                f'{monet_escape(entry.platform_version) if entry.platform_version else "NULL"}, ' \
                f'{monet_escape(entry.browser_name) if entry.browser_name else "NULL"}, ' \
                f'{monet_escape(entry.browser_version) if entry.browser_version else "NULL"}, ' \
-               f'{monet_escape(entry.is_robot) if entry.is_robot else "NULL"}' \
+               f'{monet_escape(entry.is_robot) if entry.is_robot is not None else "NULL"}' \
                f')'
 
     def select(self, table: str, start: date = None, stop: date = None, limit: int = None) -> List[Entry]:
@@ -208,13 +213,14 @@ class MonetDAO:
                 if not current:
                     break
 
-                current[0] = date.fromordinal(current[0])  # date
-                current[4] = int(current[4]) if current[4] is not None else None  # status
-                current[5] = int(current[5]) if current[5] is not None else None  # length
-                current[6] = float(current[6]) if current[6] is not None else None  # length
-                current[7] = current[7] if current[7] else None  # referer
-                current[8] = ip_address(current[8]) if current[8] else None  # ip
-                current[14] = bool(current[14]) if current[14] is not None else None  # is_robot
+                current[0] = datetime.utcfromtimestamp(current[0])  # datetime
+                current[1] = date.fromordinal(current[1])  # date
+                current[5] = int(current[5]) if current[5] is not None else None  # status
+                current[6] = int(current[6]) if current[6] is not None else None  # length
+                current[7] = float(current[7]) if current[7] is not None else None  # length
+                current[8] = current[8] if current[8] else None  # referer
+                current[9] = ip_address(current[9]) if current[9] else None  # ip
+                current[15] = bool(current[15]) if current[15] is not None else None  # is_robot
 
                 results.append(Entry(*current))
 

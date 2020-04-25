@@ -9,7 +9,7 @@ import sys
 from collections import defaultdict, deque
 from datetime import date, datetime, timedelta
 from ipaddress import ip_address
-from typing import cast, Tuple, Union, Optional, Set, Dict, Deque
+from typing import cast, Tuple, Union, Optional, Set, Dict, Deque, Any
 
 import aiohttp_jinja2
 import httpagentparser
@@ -25,14 +25,14 @@ logging.basicConfig(format='%(asctime)s %(message)s', level=logging.DEBUG)
 
 
 class BalconeJSONEncoder(simplejson.JSONEncoder):
-    def default(self, o):
-        if isinstance(o, date):
-            return str(o)
+    def default(self, obj: Any) -> str:
+        if isinstance(obj, date):
+            return obj.isoformat()
 
-        if isinstance(o, IPv4Address) or isinstance(o, IPv6Address):
-            return str(o)
+        if isinstance(obj, IPv4Address) or isinstance(obj, IPv6Address):
+            return str(obj)
 
-        return super().default(o)
+        return super().default(obj)
 
 
 class Balcone:
@@ -51,7 +51,11 @@ class Balcone:
 
     def persist(self):
         for service, queue in self.queue.items():
-            self.dao.batch_insert_into(service, queue)
+            count = self.dao.batch_insert_into(service, queue)
+
+            if count:
+                logging.debug('Inserted {:d} entries for service {}'.format(count, service))
+
             queue.clear()
 
     def time(self, service: str, start: date, stop: date) -> AverageResult:
@@ -77,7 +81,7 @@ class Balcone:
                                      limit=self.unwrap_n(n), start=start, stop=stop)
 
     def country(self, service: str, start: date, stop: date, n: Optional[int]) -> CountResult:
-        return self.dao.select_count(service, 'ip', ascending=False, group='country_iso_name',
+        return self.dao.select_count(service, 'ip', ascending=False, group='country_iso_code',
                                      limit=self.unwrap_n(n), start=start, stop=stop)
 
     def visits(self, service: str, start: date, stop: date) -> CountResult:
@@ -162,10 +166,14 @@ class SyslogProtocol(asyncio.DatagramProtocol):
 
             self.tables.add(service)
 
+        current_datetime = datetime.utcnow()
+        current_date = current_datetime.date()
+
         user_agent = httpagentparser.detect(content['http_user_agent'])
 
         entry = Entry(
-            date=datetime.utcnow().date(),
+            datetime=current_datetime,
+            date=current_date,
             host=content['host'],
             method=content['request_method'],
             path=content['uri'],
@@ -174,7 +182,7 @@ class SyslogProtocol(asyncio.DatagramProtocol):
             generation_time=float(content['request_time']),
             referer=content['http_referrer'],
             ip=ip_address(content['remote_addr']),
-            country_iso_name=Balcone.iso_code(self.balcone.geoip, content['remote_addr']),
+            country_iso_code=Balcone.iso_code(self.balcone.geoip, content['remote_addr']),
             platform_name=user_agent.get('platform', {}).get('name', None),
             platform_version=user_agent.get('platform', {}).get('version', None),
             browser_name=user_agent.get('browser', {}).get('name', None),
