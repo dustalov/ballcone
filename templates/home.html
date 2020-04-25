@@ -23,11 +23,11 @@ $(document).ready(function() {
     $.getJSON('/yarn/visits', function(data) {
         console.log(data);
 
-        Object.keys(data).forEach(function(key) {
-            window.chart.data.labels.push(key);
+        data.elements.forEach(function(entry) {
+            window.chart.data.labels.push(entry.date);
 
             window.chart.data.datasets.forEach(function(dataset) {
-                dataset.data.push(data[key][0][1]);
+                dataset.data.push(entry.count);
             });
         });
 
