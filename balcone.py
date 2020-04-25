@@ -3,202 +3,85 @@
 __author__ = 'Dmitry Ustalov'
 
 import asyncio
-import json
 import logging
 import re
-import statistics
 import sys
-import uuid
-from array import array
-from calendar import timegm
-from collections import defaultdict, Counter
 from datetime import date, datetime, timedelta
-from itertools import groupby
-from json import JSONDecodeError
-from operator import itemgetter
-from time import gmtime
-from typing import cast, NamedTuple, Type, Dict, List, Tuple, Union, Optional, Callable, Generator, \
-    Counter as CounterType
+from ipaddress import ip_address
+from typing import cast, Tuple, Union, Optional, Set
 
 import aiohttp_jinja2
-# noinspection PyUnresolvedReferences
-import capnp
 import httpagentparser
 import jinja2
-import plyvel
+import monetdblite
+import simplejson
 from aiohttp import web
 from geolite2 import geolite2, maxminddb
-from record_capnp import Record
+
+from monetdb_dao import MonetDAO, Entry, AverageResult, CountResult
 
 logging.basicConfig(format='%(asctime)s %(message)s', level=logging.DEBUG)
 
 
-class Entry(NamedTuple):
-    field: str
-    ftype: Type
+class BalconeJSONEncoder(simplejson.JSONEncoder):
+    def default(self, o):
+        if isinstance(o, date):
+            return str(o)
 
+        if isinstance(o, IPv4Address) or isinstance(o, IPv6Address):
+            return str(o)
 
-class DateRecord(NamedTuple):
-    date: date
-    record: 'Record'
-
-
-class Average(NamedTuple):
-    length: int
-    mean: float
-    median: float
-
-
-def cast_ftype(ftype: str) -> Type:
-    if 'int' in ftype:
-        return int
-    elif 'float' in ftype:
-        return float
-    else:
-        return str
-
-
-# XXX: Is there a better way for retrieving field types and $nginx annotation?
-ENTRIES = {field.name: Entry(field.annotations[0].value.text if len(field.annotations) > 0 else None,
-                             cast_ftype(next(iter(field.slot.type.to_dict()))))
-           for field in Record.schema.node.struct.fields}
-
-
-class DBdict(defaultdict):
-    def __init__(self, db: plyvel.DB):
-        super().__init__()
-        self.db = db
-
-    def __missing__(self, key: str):
-        self[key] = self.db.prefixed_db(b'%b\t' % key.encode('utf-8'))
-        return self[key]
-
-    def count(self, service: str, field: Optional[Union[str, Callable]],
-              start: date, stop: date) -> Dict[date, CounterType[str]]:
-        db = self[service]
-
-        result: Dict[date, CounterType[str]] = {}
-
-        if callable(field):
-            def _getattr(r, _):
-                return field(r)
-        elif isinstance(field, str):
-            _getattr = getattr
-        else:
-            # field=None means COUNT(*), where None denotes the *
-            _getattr = lambda *x: None
-
-        for current, record in self.traverse(db, start, stop, include_value=field is not None):
-            if current not in result:
-                result[current] = Counter()
-
-            result[current][_getattr(record, field)] += 1
-
-        return result
-
-    def average(self, service: str, field: str, start: date, stop: date) -> Dict[date, Average]:
-        db = self[service]
-
-        result: Dict[date, Average] = {}
-
-        for current, group in groupby(self.traverse(db, start, stop), key=itemgetter(0)):
-            values = array('f', (getattr(record, field) for _, record in group))
-
-            result[current] = Average(len(values), statistics.mean(values), statistics.median(values))
-
-        return result
-
-    # noinspection PyProtectedMember
-    @staticmethod
-    def traverse(db: plyvel._plyvel.PrefixedDB, start: date, stop: date,
-                 include_value=True) -> Generator[DateRecord, None, None]:
-        # We need to iterate right before the next day after stop
-        stop = stop + timedelta(days=1)
-
-        start_ts, stop_ts = timegm(start.timetuple()) * 1000, timegm(stop.timetuple()) * 1000
-
-        start_key, stop_key = b'%d\t' % start_ts, b'%d\t' % stop_ts
-
-        for key_or_key_value in db.iterator(start=start_key, stop=stop_key, include_value=include_value):
-            if include_value:
-                key, value = key_or_key_value
-                record = Record.from_bytes_packed(value)
-            else:
-                key = key_or_key_value
-                record = None
-
-            current_ts, _, _ = key.partition(b'\t')
-
-            current = date(*gmtime(int(current_ts) // 1000)[:3])
-
-            yield DateRecord(current, record)
+        return super().default(o)
 
 
 class Balcone:
     N = 10
 
-    def __init__(self, db: DBdict, reader: maxminddb.reader.Reader):
-        self.db = db
-        self.reader = reader
+    def __init__(self, dao: MonetDAO, geoip: maxminddb.reader.Reader):
+        self.dao = dao
+        self.geoip = geoip
 
-    def put(self, service: str, record: Record) -> Tuple[int, uuid.UUID]:
-        timestamp = round(datetime.utcnow().timestamp() * 1000)
-        request_id = uuid.uuid4()
+    def time(self, service: str, start: date, stop: date) -> AverageResult:
+        return self.dao.select_average(service, 'generation_time', start, stop)
 
-        key = b'%d\t%b' % (timestamp, request_id.bytes)
+    def bytes(self, service: str, start: date, stop: date) -> AverageResult:
+        return self.dao.select_average(service, 'length', start, stop)
 
-        self.db[service].put(key, record.to_bytes_packed())
+    def os(self, service: str, start: date, stop: date, n: Optional[int]) -> CountResult:
+        return self.dao.select_count(service, 'ip', ascending=False, group='platform_name',
+                                     limit=self.unwrap_n(n), date_begin=start, date_end=stop)
 
-        return timestamp, request_id
+    def browser(self, service: str, start: date, stop: date, n: Optional[int]) -> CountResult:
+        return self.dao.select_count(service, 'ip', ascending=False, group='browser_name',
+                                     limit=self.unwrap_n(n), date_begin=start, date_end=stop)
 
-    def time(self, service: str, start: date, stop: date) -> Dict[date, Average]:
-        return self.db.average(service, 'time', start, stop)
+    def uri(self, service: str, start: date, stop: date, n: Optional[int]) -> CountResult:
+        return self.dao.select_count(service, 'ip', ascending=False, group='path',
+                                     limit=self.unwrap_n(n), date_begin=start, date_end=stop)
 
-    def bytes(self, service: str, start: date, stop: date) -> Dict[date, Average]:
-        return self.db.average(service, 'body', start, stop)
+    def ip(self, service: str, start: date, stop: date, n: Optional[int]) -> CountResult:
+        return self.dao.select_count(service, 'status', ascending=False, group='ip', limit=self.unwrap_n(n),
+                                     date_begin=start, date_end=stop)
 
-    def os(self, service: str, start: date, stop: date, n: Optional[int]) -> Dict[date, List[Tuple[str, int]]]:
-        result = self.db.count(service, lambda r: httpagentparser.simple_detect(r.userAgent)[0], start, stop)
+    def country(self, service: str, start: date, stop: date, n: Optional[int]) -> CountResult:
+        return self.dao.select_count(service, 'ip', ascending=False, group='country_iso_name', limit=self.unwrap_n(n),
+                                     date_begin=start, date_end=stop)
 
-        return {d: counter.most_common(self.unwrap_n(n)) for d, counter in result.items()}
+    def visits(self, service: str, start: date, stop: date, n: Optional[int]) -> CountResult:
+        return self.dao.select_count(service, 'ip', ascending=False, limit=self.unwrap_n(n),
+                                     date_begin=start, date_end=stop)
 
-    def browser(self, service: str, start: date, stop: date, n: Optional[int]) -> Dict[date, List[Tuple[str, int]]]:
-        result = self.db.count(service, lambda r: httpagentparser.simple_detect(r.userAgent)[1], start, stop)
-
-        return {d: counter.most_common(self.unwrap_n(n)) for d, counter in result.items()}
-
-    def uri(self, service: str, start: date, stop: date, n: Optional[int]) -> Dict[date, List[Tuple[str, int]]]:
-        result = self.db.count(service, 'uri', start, stop)
-
-        return {d: counter.most_common(self.unwrap_n(n)) for d, counter in result.items()}
-
-    def ip(self, service: str, start: date, stop: date, n: Optional[int]) -> Dict[date, List[Tuple[str, int]]]:
-        result = self.db.count(service, 'remote', start, stop)
-
-        return {d: counter.most_common(self.unwrap_n(n)) for d, counter in result.items()}
-
-    def country(self, service: str, start: date, stop: date, n: Optional[int]) -> Dict[date, List[Tuple[str, int]]]:
-        result = self.db.count(service, lambda record: self.iso_code(self.reader, record), start, stop)
-
-        return {d: counter.most_common(self.unwrap_n(n)) for d, counter in result.items()}
-
-    def visits(self, service: str, start: date, stop: date, n: Optional[int]) -> Dict[date, List[Tuple[str, int]]]:
-        result = self.db.count(service, None, start, stop)
-
-        return {d: counter.most_common(self.unwrap_n(n)) for d, counter in result.items()}
-
-    def unique(self, service: str, start: date, stop: date, n: Optional[int]) -> Dict[date, List[Tuple[str, int]]]:
-        result = self.db.count(service, lambda r: r.remote, start, stop)
-
-        return {d: counter.most_common(self.unwrap_n(n)) for d, counter in result.items()}
+    def unique(self, service: str, start: date, stop: date, n: Optional[int]) -> CountResult:
+        return self.dao.select_count(service, 'ip', distinct=True, ascending=False, limit=self.unwrap_n(n),
+                                     date_begin=start, date_end=stop)
 
     @staticmethod
     def unwrap_n(n: Optional[int]) -> int:
         return n if n else Balcone.N
 
     @staticmethod
-    def iso_code(reader: maxminddb.reader.Reader, record: Record) -> str:
-        geo = reader.get(record.remote)
+    def iso_code(geoip: maxminddb.reader.Reader, ip: str) -> str:
+        geo = geoip.get(ip)
 
         if geo and 'country' in geo:
             return geo['country'].get('iso_code', 'UNKNOWN')
@@ -217,17 +100,6 @@ def isint(str: str) -> bool:
         return False
 
 
-def isfloat(str: str) -> bool:
-    if not str:
-        return False
-
-    try:
-        value = float(str)
-        return value > 0
-    except ValueError:
-        return False
-
-
 # nginx's output cannot be properly parsed by any parser I tried
 NGINX_SYSLOG = re.compile(r'\A\<[0-9]{1,3}\>.*?: (?P<message>.+)\Z')
 
@@ -238,6 +110,8 @@ class SyslogProtocol(asyncio.DatagramProtocol):
     def __init__(self, balcone: Balcone):
         super().__init__()
         self.balcone = balcone
+        self.transport: Optional[asyncio.BaseTransport] = None
+        self.tables: Set[str] = set()
 
     def connection_made(self, transport: asyncio.BaseTransport):
         self.transport = transport
@@ -256,8 +130,8 @@ class SyslogProtocol(asyncio.DatagramProtocol):
             return
 
         try:
-            content = json.loads(match.group('message'))
-        except JSONDecodeError:
+            content = simplejson.loads(match.group('message'))
+        except simplejson.JSONDecodeError:
             logging.info('Malformed JSON received from {}: {}'.format(addr, message))
             return
 
@@ -271,28 +145,33 @@ class SyslogProtocol(asyncio.DatagramProtocol):
             logging.info('Malformed service field from {}: {}'.format(addr, message))
             return
 
-        record = Record.new_message()
+        if service not in self.tables:
+            if not self.balcone.dao.table_exists(service):
+                self.balcone.dao.create_table(service)
 
-        for attr, (field, ftype) in ENTRIES.items():
-            if field not in content:
-                continue
+            self.tables.add(service)
 
-            value = content[field]
+        user_agent = httpagentparser.detect(content['http_user_agent'])
 
-            if not value:
-                continue
+        entry = Entry(
+            date=datetime.utcnow().date(),
+            host=content['host'],
+            method=content['request_method'],
+            path=content['uri'],
+            status=int(content['status']),
+            length=int(content['body_bytes_sent']),
+            generation_time=float(content['request_time']),
+            referer=None,
+            ip=ip_address(content['remote_addr']),
+            country_iso_name=Balcone.iso_code(self.balcone.geoip, content['remote_addr']),
+            platform_name=user_agent.get('platform', {}).get('name', None),
+            platform_version=user_agent.get('platform', {}).get('version', None),
+            browser_name=user_agent.get('browser', {}).get('name', None),
+            browser_version=user_agent.get('browser', {}).get('version', None),
+            is_robot=user_agent.get('bot', None)
+        )
 
-            if ftype == int and not isint(value):
-                continue
-
-            if ftype == float and not isfloat(value):
-                continue
-
-            setattr(record, attr, ftype(value))
-
-        _, request_id = self.balcone.put(service, record)
-
-        logging.debug('Record {}: {}'.format(request_id.hex, record.to_dict()))
+        self.balcone.dao.insert_into(service, entry)
 
 
 HELLO_FORMAT = re.compile(r'\A(?P<command>[^\s]+?) (?P<service>[^\s]+?)(| (?P<parameter>[^\s]+))\n\Z')
@@ -378,8 +257,9 @@ class DebugProtocol(asyncio.Protocol):
 
 
 class HTTPHandler:
-    def __init__(self, balcone: Balcone):
+    def __init__(self, balcone: Balcone, encoder: simplejson.JSONEncoder):
         self.balcone = balcone
+        self.encoder = encoder
 
     @aiohttp_jinja2.template('home.html')
     async def home(self, request: web.Request):
@@ -393,7 +273,7 @@ class HTTPHandler:
 
         parameter = request.query.get('parameter', None)
 
-        response: Optional[Union[Dict[date, Average], Dict[date, List[Tuple[str, int]]]]] = None
+        response: Optional[Union[AverageResult, CountResult]] = None
 
         if command == 'time':
             response = self.balcone.time(service, start, stop)
@@ -429,23 +309,18 @@ class HTTPHandler:
             n = int(parameter) if isint(parameter) else None
             response = self.balcone.unique(service, start, stop, n)
 
-        return web.json_response(self.stringify(response))
-
-    @staticmethod
-    def stringify(response: Optional[dict]) -> dict:
-        if response:
-            return {k.isoformat(): v for k, v in response.items()}
-        else:
-            return {}
+        return web.json_response(response, dumps=self.encoder.encode)
 
 
 def main():
-    db_root = plyvel.DB('db', create_if_missing=True)
-    db = DBdict(db_root)
+    dao = MonetDAO(monetdblite.make_connection('monetdb'), 'balcone')
 
-    reader = geolite2.reader()
+    if not dao.schema_exists():
+        dao.create_schema()
 
-    balcone = Balcone(db, reader)
+    geoip = geolite2.reader()
+
+    balcone = Balcone(dao, geoip)
 
     loop = asyncio.get_event_loop()
 
@@ -457,15 +332,14 @@ def main():
 
     app = web.Application()
     aiohttp_jinja2.setup(app, loader=jinja2.FileSystemLoader('templates'))
-    handler = HTTPHandler(balcone)
+    handler = HTTPHandler(balcone, BalconeJSONEncoder())
     app.router.add_get('/', handler.home)
     app.router.add_get('/{service}/{query}', handler.query)
     web.run_app(app, host='127.0.0.1', port=8080)
 
     loop.run_forever()
-
-    reader.close()
-    db_root.close()
+    geoip.close()
+    dao.close()
 
 
 if __name__ == '__main__':
