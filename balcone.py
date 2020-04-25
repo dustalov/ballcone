@@ -172,7 +172,7 @@ class SyslogProtocol(asyncio.DatagramProtocol):
             status=int(content['status']),
             length=int(content['body_bytes_sent']),
             generation_time=float(content['request_time']),
-            referer=None,
+            referer=content['http_referrer'],
             ip=ip_address(content['remote_addr']),
             country_iso_name=Balcone.iso_code(self.balcone.geoip, content['remote_addr']),
             platform_name=user_agent.get('platform', {}).get('name', None),
