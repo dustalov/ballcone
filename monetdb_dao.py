@@ -37,6 +37,7 @@ class Count(NamedTuple):
 
 
 class CountResult(NamedTuple):
+    table: str
     field: Optional[str]
     distinct: bool
     ascending: Optional[bool]
@@ -52,20 +53,21 @@ class Average(NamedTuple):
 
 
 class AverageResult(NamedTuple):
+    table: str
     field: str
     elements: Sequence[Average]
 
 
 class MonetDAO:
-    def __init__(self, db: monetdblite.Connection, schema_name: str):
+    def __init__(self, db: monetdblite.Connection, schema: str):
         self.db = db
-        self.schema_name = schema_name
+        self.schema = schema
 
     def close(self):
         self.db.close()
 
     def schema_exists(self):
-        stmt = f'SELECT name FROM sys.schemas WHERE name = {monet_escape(self.schema_name)};'
+        stmt = f'SELECT name FROM sys.schemas WHERE name = {monet_escape(self.schema)};'
 
         logging.info(stmt)
 
@@ -74,7 +76,7 @@ class MonetDAO:
         return result['name'].size > 0
 
     def create_schema(self):
-        stmt = f'CREATE SCHEMA {monet_identifier_escape(self.schema_name)};'
+        stmt = f'CREATE SCHEMA {monet_identifier_escape(self.schema)};'
 
         logging.info(stmt)
 
@@ -83,10 +85,10 @@ class MonetDAO:
             cursor.commit()
             return result
 
-    def table_exists(self, table_name: str):
+    def table_exists(self, table: str):
         stmt = f'SELECT tables.name AS name ' \
                f'FROM sys.tables AS tables JOIN sys.schemas AS schemas ON schemas.id = tables.schema_id ' \
-               f'WHERE schemas.name = {monet_escape(self.schema_name)} AND tables.name = {monet_escape(table_name)};'
+               f'WHERE schemas.name = {monet_escape(self.schema)} AND tables.name = {monet_escape(table)};'
 
         logging.info(stmt)
 
@@ -94,8 +96,8 @@ class MonetDAO:
 
         return result['name'].size > 0
 
-    def create_table(self, table_name: str):
-        stmt = f'CREATE TABLE {monet_identifier_escape(self.schema_name)}.{monet_identifier_escape(table_name)} (' \
+    def create_table(self, table: str):
+        stmt = f'CREATE TABLE {monet_identifier_escape(self.schema)}.{monet_identifier_escape(table)} (' \
                f'date INT NOT NULL, ' \
                f'host TEXT NOT NULL, ' \
                f'method TEXT NOT NULL, ' \
@@ -120,11 +122,10 @@ class MonetDAO:
             cursor.commit()
             return result
 
-    def insert_into(self, table_name: str, entry: Entry,
-                    cursor: Optional[monetdblite.cursors.Cursor] = None) -> int:
+    def insert_into(self, table: str, entry: Entry, cursor: Optional[monetdblite.cursors.Cursor] = None) -> int:
         value_stmt = self.value_entry(entry)
 
-        stmt = f'INSERT INTO {monet_identifier_escape(self.schema_name)}.{monet_identifier_escape(table_name)} ' \
+        stmt = f'INSERT INTO {monet_identifier_escape(self.schema)}.{monet_identifier_escape(table)} ' \
                f'VALUES {value_stmt};'
 
         logging.info(stmt)
@@ -139,12 +140,12 @@ class MonetDAO:
 
                 return result
 
-    def batch_insert_into(self, table_name, entries: Sequence[Entry]) -> int:
+    def batch_insert_into(self, table: str, entries: Sequence[Entry]) -> int:
         count = 0
 
         with self.cursor() as cursor:
             for entry in entries:
-                count += self.insert_into(table_name, entry, cursor=cursor)
+                count += self.insert_into(table, entry, cursor=cursor)
 
             cursor.commit()
 
@@ -170,8 +171,8 @@ class MonetDAO:
                f'{monet_escape(entry.is_robot) if entry.is_robot else "NULL"}' \
                f')'
 
-    def select(self, table_name: str, date_begin: date = None, date_end: date = None, limit: int = None) -> List[Entry]:
-        where_stmt = self.where_dates(date_begin, date_end)
+    def select(self, table: str, start: date = None, stop: date = None, limit: int = None) -> List[Entry]:
+        where_stmt = self.where_dates(start, stop)
 
         if where_stmt:
             where_stmt = ' WHERE ' + where_stmt
@@ -179,8 +180,8 @@ class MonetDAO:
         limit_stmt = f' LIMIT {int(limit)}' if limit is not None else ''
 
         stmt = f'SELECT * ' \
-               f'FROM {monet_identifier_escape(self.schema_name)}.{monet_identifier_escape(table_name)}' \
-               f'{where_stmt}{limit_stmt};'
+               f'FROM {monet_identifier_escape(self.schema)}.{monet_identifier_escape(table)}' \
+               f'{where_stmt} ORDER BY date{limit_stmt};'
 
         logging.info(stmt)
 
@@ -207,10 +208,42 @@ class MonetDAO:
 
             return results
 
-    def select_count(self, table_name: str, field: Optional[str], distinct: bool = False,
-                     date_begin: Optional[date] = None, date_end: Optional[date] = None,
+    def select_average(self, table: str, field: str, start: date = None, stop: date = None) -> AverageResult:
+        where_stmt = self.where_dates(start, stop)
+
+        if where_stmt:
+            where_stmt = ' WHERE ' + where_stmt
+
+        stmt = f'SELECT date, ' \
+               f'AVG({monet_identifier_escape(field)}) AS average, ' \
+               f'SUM({monet_identifier_escape(field)}) AS sum, ' \
+               f'COUNT({monet_identifier_escape(field)}) AS count ' \
+               f'FROM {monet_identifier_escape(self.schema)}.{monet_identifier_escape(table)}' \
+               f'{where_stmt} GROUP BY date ORDER BY date;'
+
+        logging.info(stmt)
+
+        with self.cursor() as cursor:
+            cursor.execute(stmt)
+
+            result = AverageResult(table=table, field=field, elements=[])
+
+            for current in cursor:
+                current_date = date.fromordinal(current[0])
+
+                result.elements.append(Average(
+                    date=current_date,
+                    avg=float(current[1]),
+                    sum=float(current[2]) if current[3] else 0.,
+                    count=int(current[2])
+                ))
+
+            return result
+
+    def select_count(self, table: str, field: Optional[str], distinct: bool = False,
+                     start: Optional[date] = None, stop: Optional[date] = None,
                      ascending: Optional[bool] = None, group: Optional[str] = None, limit: int = None) -> CountResult:
-        where_stmt = self.where_dates(date_begin, date_end)
+        where_stmt = self.where_dates(start, stop)
 
         if where_stmt:
             where_stmt = ' WHERE ' + where_stmt
@@ -232,20 +265,22 @@ class MonetDAO:
         if ascending is None:
             order_stmt = ''
         elif ascending:
-            order_stmt = ' ORDER BY count'
+            order_stmt = ', count'
         else:
-            order_stmt = ' ORDER BY count DESC'
+            order_stmt = ', count DESC'
 
         stmt = f'SELECT date{select_group_stmt}, COUNT({count_stmt}) AS count ' \
-               f'FROM {monet_identifier_escape(self.schema_name)}.{monet_identifier_escape(table_name)}' \
-               f'{where_stmt} GROUP BY date{group_by_stmt}{order_stmt}{limit_stmt};'
+               f'FROM {monet_identifier_escape(self.schema)}.{monet_identifier_escape(table)}' \
+               f'{where_stmt} GROUP BY date{group_by_stmt} ORDER BY date{order_stmt}{limit_stmt};'
 
         logging.info(stmt)
 
         with self.cursor() as cursor:
             cursor.execute(stmt)
 
-            result = CountResult(field=field, distinct=distinct, group=group, ascending=ascending, elements=[])
+            result = CountResult(table=table, field=field,
+                                 distinct=distinct, group=group, ascending=ascending,
+                                 elements=[])
 
             for current in cursor:
                 current_date = date.fromordinal(current[0])
@@ -258,48 +293,15 @@ class MonetDAO:
 
             return result
 
-    def select_average(self, table_name: str, field: str,
-                       date_begin: date = None, date_end: date = None) -> AverageResult:
-        where_stmt = self.where_dates(date_begin, date_end)
-
-        if where_stmt:
-            where_stmt = ' WHERE ' + where_stmt
-
-        stmt = f'SELECT date, ' \
-               f'AVG({monet_identifier_escape(field)}) AS average, ' \
-               f'SUM({monet_identifier_escape(field)}) AS sum, ' \
-               f'COUNT({monet_identifier_escape(field)}) AS count ' \
-               f'FROM {monet_identifier_escape(self.schema_name)}.{monet_identifier_escape(table_name)}' \
-               f'{where_stmt} GROUP BY date;'
-
-        logging.info(stmt)
-
-        with self.cursor() as cursor:
-            cursor.execute(stmt)
-
-            result = AverageResult(field=field, elements=[])
-
-            for current in cursor:
-                current_date = date.fromordinal(current[0])
-
-                result.elements.append(Average(
-                    date=current_date,
-                    avg=float(current[1]),
-                    sum=float(current[2]) if current[3] else 0.,
-                    count=int(current[2])
-                ))
-
-            return result
-
     @staticmethod
-    def where_dates(date_begin: Optional[date] = None, date_end: Optional[date] = None) -> str:
-        if date_begin and date_end:
-            return f'{monet_identifier_escape("date")} BETWEEN {monet_escape(date_begin.toordinal())} ' \
-                   f'AND {monet_escape(date_end.toordinal())}'
-        elif date_begin:
-            return f'{monet_identifier_escape("date")} >= {monet_escape(date_begin.toordinal())}'
-        elif date_end:
-            return f'{monet_identifier_escape("date")} <= {monet_escape(date_end.toordinal())}'
+    def where_dates(start: Optional[date] = None, stop: Optional[date] = None) -> str:
+        if start and stop:
+            return f'{monet_identifier_escape("date")} BETWEEN {monet_escape(start.toordinal())} ' \
+                   f'AND {monet_escape(stop.toordinal())}'
+        elif start:
+            return f'{monet_identifier_escape("date")} >= {monet_escape(start.toordinal())}'
+        elif stop:
+            return f'{monet_identifier_escape("date")} <= {monet_escape(stop.toordinal())}'
 
         return ''
 
