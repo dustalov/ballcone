@@ -42,7 +42,7 @@ class CountResult(NamedTuple):
     distinct: bool
     ascending: Optional[bool]
     group: Optional[str]
-    elements: Sequence[Count]
+    elements: List[Count]
 
 
 class Average(NamedTuple):
@@ -55,7 +55,7 @@ class Average(NamedTuple):
 class AverageResult(NamedTuple):
     table: str
     field: str
-    elements: Sequence[Average]
+    elements: List[Average]
 
 
 class MonetDAO:
@@ -143,11 +143,12 @@ class MonetDAO:
     def batch_insert_into(self, table: str, entries: Sequence[Entry]) -> int:
         count = 0
 
-        with self.cursor() as cursor:
-            for entry in entries:
-                count += self.insert_into(table, entry, cursor=cursor)
+        if entries:
+            with self.cursor() as cursor:
+                for entry in entries:
+                    count += self.insert_into(table, entry, cursor=cursor)
 
-            cursor.commit()
+                cursor.commit()
 
         return count
 

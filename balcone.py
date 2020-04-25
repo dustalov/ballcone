@@ -6,9 +6,10 @@ import asyncio
 import logging
 import re
 import sys
+from collections import defaultdict, deque
 from datetime import date, datetime, timedelta
 from ipaddress import ip_address
-from typing import cast, Tuple, Union, Optional, Set
+from typing import cast, Tuple, Union, Optional, Set, Dict, Deque
 
 import aiohttp_jinja2
 import httpagentparser
@@ -36,10 +37,22 @@ class BalconeJSONEncoder(simplejson.JSONEncoder):
 
 class Balcone:
     N = 10
+    DELAY = 5
 
     def __init__(self, dao: MonetDAO, geoip: maxminddb.reader.Reader):
         self.dao = dao
         self.geoip = geoip
+        self.queue: Dict[str, Deque[Entry]] = defaultdict(deque)
+
+    async def persist_timer(self):
+        while True:
+            await asyncio.sleep(self.DELAY)
+            self.persist()
+
+    def persist(self):
+        for service, queue in self.queue.items():
+            self.dao.batch_insert_into(service, queue)
+            queue.clear()
 
     def time(self, service: str, start: date, stop: date) -> AverageResult:
         return self.dao.select_average(service, 'generation_time', start, stop)
@@ -67,13 +80,11 @@ class Balcone:
         return self.dao.select_count(service, 'ip', ascending=False, group='country_iso_name',
                                      limit=self.unwrap_n(n), start=start, stop=stop)
 
-    def visits(self, service: str, start: date, stop: date, n: Optional[int]) -> CountResult:
-        return self.dao.select_count(service, 'ip', ascending=False,
-                                     limit=self.unwrap_n(n), start=start, stop=stop)
+    def visits(self, service: str, start: date, stop: date) -> CountResult:
+        return self.dao.select_count(service, 'ip', ascending=False, start=start, stop=stop)
 
-    def unique(self, service: str, start: date, stop: date, n: Optional[int]) -> CountResult:
-        return self.dao.select_count(service, 'ip', distinct=True, ascending=False,
-                                     limit=self.unwrap_n(n), start=start, stop=stop)
+    def unique(self, service: str, start: date, stop: date) -> CountResult:
+        return self.dao.select_count(service, 'ip', distinct=True, ascending=False, start=start, stop=stop)
 
     @staticmethod
     def unwrap_n(n: Optional[int]) -> int:
@@ -171,7 +182,7 @@ class SyslogProtocol(asyncio.DatagramProtocol):
             is_robot=user_agent.get('bot', None)
         )
 
-        self.balcone.dao.insert_into(service, entry)
+        self.balcone.queue[service].append(entry)
 
 
 HELLO_FORMAT = re.compile(r'\A(?P<command>[^\s]+?) (?P<service>[^\s]+?)(| (?P<parameter>[^\s]+))\n\Z')
@@ -242,12 +253,10 @@ class DebugProtocol(asyncio.Protocol):
             response = str(self.balcone.country(service, start, stop, n))
 
         if command == 'visits':
-            n = int(parameter) if isint(parameter) else None
-            response = str(self.balcone.visits(service, start, stop, n))
+            response = str(self.balcone.visits(service, start, stop))
 
         if command == 'unique':
-            n = int(parameter) if isint(parameter) else None
-            response = str(self.balcone.unique(service, start, stop, n))
+            response = str(self.balcone.unique(service, start, stop))
 
         if response:
             self.transport.write(response.encode('utf-8'))
@@ -302,12 +311,10 @@ class HTTPHandler:
             response = self.balcone.country(service, start, stop, n)
 
         if command == 'visits':
-            n = int(parameter) if isint(parameter) else None
-            response = self.balcone.visits(service, start, stop, n)
+            response = self.balcone.visits(service, start, stop)
 
         if command == 'unique':
-            n = int(parameter) if isint(parameter) else None
-            response = self.balcone.unique(service, start, stop, n)
+            response = self.balcone.unique(service, start, stop)
 
         return web.json_response(response, dumps=self.encoder.encode)
 
@@ -330,6 +337,9 @@ def main():
     debug = loop.create_server(lambda: DebugProtocol(balcone), host='127.0.0.1', port=8888)
     loop.run_until_complete(debug)
 
+    persist_timer = loop.create_task(balcone.persist_timer())
+    loop.run_until_complete(persist_timer)
+
     app = web.Application()
     aiohttp_jinja2.setup(app, loader=jinja2.FileSystemLoader('templates'))
     handler = HTTPHandler(balcone, BalconeJSONEncoder())
@@ -337,9 +347,14 @@ def main():
     app.router.add_get('/{service}/{query}', handler.query)
     web.run_app(app, host='127.0.0.1', port=8080)
 
-    loop.run_forever()
-    geoip.close()
-    dao.close()
+    try:
+        loop.run_forever()
+    finally:
+        geoip.close()
+        try:
+            balcone.persist()
+        finally:
+            dao.close()
 
 
 if __name__ == '__main__':
