@@ -85,6 +85,17 @@ class MonetDAO:
             cursor.commit()
             return result
 
+    def tables(self) -> Sequence[str]:
+        stmt = f'SELECT tables.name AS name ' \
+               f'FROM sys.tables AS tables JOIN sys.schemas AS schemas ON schemas.id = tables.schema_id ' \
+               f'WHERE schemas.name = {monet_escape(self.schema)};'
+
+        logging.info(stmt)
+
+        result = self.db.execute(stmt)
+
+        return result['name'].tolist()
+
     def table_exists(self, table: str):
         stmt = f'SELECT tables.name AS name ' \
                f'FROM sys.tables AS tables JOIN sys.schemas AS schemas ON schemas.id = tables.schema_id ' \
