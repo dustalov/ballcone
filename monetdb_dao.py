@@ -4,7 +4,7 @@ import logging
 from contextlib import contextmanager
 from datetime import date
 from ipaddress import ip_address, IPv4Address, IPv6Address
-from typing import Generator, NamedTuple, Optional, List, Sequence, Union, Dict, Any
+from typing import Generator, NamedTuple, Optional, List, Sequence, Union, Any
 
 import monetdblite
 from monetdblite.monetize import monet_escape, monet_identifier_escape
@@ -39,8 +39,9 @@ class Count(NamedTuple):
 class CountResult(NamedTuple):
     field: Optional[str]
     distinct: bool
+    ascending: Optional[bool]
     group: Optional[str]
-    elements: Dict[date, Count]
+    elements: Sequence[Count]
 
 
 class Average(NamedTuple):
@@ -52,13 +53,16 @@ class Average(NamedTuple):
 
 class AverageResult(NamedTuple):
     field: str
-    elements: Dict[date, Average]
+    elements: Sequence[Average]
 
 
 class MonetDAO:
     def __init__(self, db: monetdblite.Connection, schema_name: str):
         self.db = db
         self.schema_name = schema_name
+
+    def close(self):
+        self.db.close()
 
     def schema_exists(self):
         stmt = f'SELECT name FROM sys.schemas WHERE name = {monet_escape(self.schema_name)};'
@@ -192,15 +196,20 @@ class MonetDAO:
                     break
 
                 current[0] = date.fromordinal(current[0])  # date
-                current[6] = current[6] if current[6] else None  # referer
-                current[7] = ip_address(current[7]) if current[7] else None  # ip
+                current[4] = int(current[4]) if current[4] is not None else None  # status
+                current[5] = int(current[5]) if current[5] is not None else None  # length
+                current[6] = float(current[6]) if current[6] is not None else None  # length
+                current[7] = current[7] if current[7] else None  # referer
+                current[8] = ip_address(current[8]) if current[8] else None  # ip
+                current[14] = bool(current[14]) if current[14] is not None else None  # is_robot
 
                 results.append(Entry(*current))
 
             return results
 
-    def select_count(self, table_name: str, field: Optional[str], distinct: bool = False, group: Optional[str] = None,
-                     date_begin: Optional[date] = None, date_end: Optional[date] = None) -> CountResult:
+    def select_count(self, table_name: str, field: Optional[str], distinct: bool = False,
+                     date_begin: Optional[date] = None, date_end: Optional[date] = None,
+                     ascending: Optional[bool] = None, group: Optional[str] = None, limit: int = None) -> CountResult:
         where_stmt = self.where_dates(date_begin, date_end)
 
         if where_stmt:
@@ -218,25 +227,34 @@ class MonetDAO:
             select_group_stmt = ', 0 AS _group_'
             group_by_stmt = ''
 
+        limit_stmt = f' LIMIT {int(limit)}' if limit is not None else ''
+
+        if ascending is None:
+            order_stmt = ''
+        elif ascending:
+            order_stmt = ' ORDER BY count'
+        else:
+            order_stmt = ' ORDER BY count DESC'
+
         stmt = f'SELECT date{select_group_stmt}, COUNT({count_stmt}) AS count ' \
                f'FROM {monet_identifier_escape(self.schema_name)}.{monet_identifier_escape(table_name)}' \
-               f'{where_stmt} GROUP BY date{group_by_stmt};'
+               f'{where_stmt} GROUP BY date{group_by_stmt}{order_stmt}{limit_stmt};'
 
         logging.info(stmt)
 
         with self.cursor() as cursor:
             cursor.execute(stmt)
 
-            result = CountResult(field=field, distinct=distinct, group=group, elements={})
+            result = CountResult(field=field, distinct=distinct, group=group, ascending=ascending, elements=[])
 
             for current in cursor:
                 current_date = date.fromordinal(current[0])
 
-                result.elements[current_date] = Count(
+                result.elements.append(Count(
                     date=current_date,
                     group=str(current[1]) if current[1] else None,
                     count=int(current[2])
-                )
+                ))
 
             return result
 
@@ -259,17 +277,17 @@ class MonetDAO:
         with self.cursor() as cursor:
             cursor.execute(stmt)
 
-            result = AverageResult(field=field, elements={})
+            result = AverageResult(field=field, elements=[])
 
             for current in cursor:
                 current_date = date.fromordinal(current[0])
 
-                result.elements[current_date] = Average(
+                result.elements.append(Average(
                     date=current_date,
                     avg=float(current[1]),
                     sum=float(current[2]) if current[3] else 0.,
                     count=int(current[2])
-                )
+                ))
 
             return result
 
