@@ -6,10 +6,10 @@ import asyncio
 import logging
 import re
 import sys
-from collections import defaultdict, deque
+from collections import deque
 from datetime import date, datetime, timedelta
 from ipaddress import ip_address, IPv4Address, IPv6Address
-from typing import cast, Tuple, Union, Optional, Set, Dict, Deque, Any
+from typing import cast, Tuple, Union, Optional, Dict, Deque, Any
 
 import aiohttp_jinja2
 import httpagentparser
@@ -42,7 +42,7 @@ class Balcone:
     def __init__(self, dao: MonetDAO, geoip: maxminddb.reader.Reader):
         self.dao = dao
         self.geoip = geoip
-        self.queue: Dict[str, Deque[Entry]] = defaultdict(deque)
+        self.queue: Dict[str, Deque[Entry]] = {}
 
     async def persist_timer(self):
         while await asyncio.sleep(self.DELAY, result=True):
@@ -125,7 +125,6 @@ class SyslogProtocol(asyncio.DatagramProtocol):
         super().__init__()
         self.balcone = balcone
         self.transport: Optional[asyncio.BaseTransport] = None
-        self.tables: Set[str] = set()
 
     def connection_made(self, transport: asyncio.BaseTransport):
         self.transport = transport
@@ -159,11 +158,11 @@ class SyslogProtocol(asyncio.DatagramProtocol):
             logging.info('Malformed service field from {}: {}'.format(addr, message))
             return
 
-        if service not in self.tables:
+        if service not in self.balcone.queue:
             if not self.balcone.dao.table_exists(service):
                 self.balcone.dao.create_table(service)
 
-            self.tables.add(service)
+            self.balcone.queue[service] = deque()
 
         current_datetime = datetime.utcnow()
         current_date = current_datetime.date()
