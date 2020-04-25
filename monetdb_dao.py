@@ -326,5 +326,11 @@ class MonetDAO:
     @contextmanager
     def cursor(self) -> Generator[monetdblite.cursors.Cursor, None, None]:
         cursor = self.db.cursor()
-        yield cursor
-        cursor.close()
+
+        try:
+            yield cursor
+        except monetdblite.exceptions.DatabaseError as e:
+            cursor.rollback()
+            raise e
+        finally:
+            cursor.close()
