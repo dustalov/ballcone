@@ -49,31 +49,31 @@ class Balcone:
 
     def os(self, service: str, start: date, stop: date, n: Optional[int]) -> CountResult:
         return self.dao.select_count(service, 'ip', ascending=False, group='platform_name',
-                                     limit=self.unwrap_n(n), date_begin=start, date_end=stop)
+                                     limit=self.unwrap_n(n), start=start, stop=stop)
 
     def browser(self, service: str, start: date, stop: date, n: Optional[int]) -> CountResult:
         return self.dao.select_count(service, 'ip', ascending=False, group='browser_name',
-                                     limit=self.unwrap_n(n), date_begin=start, date_end=stop)
+                                     limit=self.unwrap_n(n), start=start, stop=stop)
 
     def uri(self, service: str, start: date, stop: date, n: Optional[int]) -> CountResult:
         return self.dao.select_count(service, 'ip', ascending=False, group='path',
-                                     limit=self.unwrap_n(n), date_begin=start, date_end=stop)
+                                     limit=self.unwrap_n(n), start=start, stop=stop)
 
     def ip(self, service: str, start: date, stop: date, n: Optional[int]) -> CountResult:
-        return self.dao.select_count(service, 'status', ascending=False, group='ip', limit=self.unwrap_n(n),
-                                     date_begin=start, date_end=stop)
+        return self.dao.select_count(service, 'status', ascending=False, group='ip',
+                                     limit=self.unwrap_n(n), start=start, stop=stop)
 
     def country(self, service: str, start: date, stop: date, n: Optional[int]) -> CountResult:
-        return self.dao.select_count(service, 'ip', ascending=False, group='country_iso_name', limit=self.unwrap_n(n),
-                                     date_begin=start, date_end=stop)
+        return self.dao.select_count(service, 'ip', ascending=False, group='country_iso_name',
+                                     limit=self.unwrap_n(n), start=start, stop=stop)
 
     def visits(self, service: str, start: date, stop: date, n: Optional[int]) -> CountResult:
-        return self.dao.select_count(service, 'ip', ascending=False, limit=self.unwrap_n(n),
-                                     date_begin=start, date_end=stop)
+        return self.dao.select_count(service, 'ip', ascending=False,
+                                     limit=self.unwrap_n(n), start=start, stop=stop)
 
     def unique(self, service: str, start: date, stop: date, n: Optional[int]) -> CountResult:
-        return self.dao.select_count(service, 'ip', distinct=True, ascending=False, limit=self.unwrap_n(n),
-                                     date_begin=start, date_end=stop)
+        return self.dao.select_count(service, 'ip', distinct=True, ascending=False,
+                                     limit=self.unwrap_n(n), start=start, stop=stop)
 
     @staticmethod
     def unwrap_n(n: Optional[int]) -> int:
