@@ -1,38 +1,13 @@
 {% extends "layout.html" %}
 {% block content %}
-<div class="columns">
-    <div class="column">
-        <canvas id="chart" style="height: 20em; width: 100%; display: block;"></canvas>
-    </div>
+<div class="content">
+    <h2 class="subtitle">Services</h2>
+    <ul>
+        {% for service in services %}
+        <li><a href="{{ url('service', service=service) }}">{{ service }}</a></li>
+        {% else %}
+        <li>No services yet</li>
+        {% endfor %}
+    </ul>
 </div>
-
-<script>
-var chart = new Chart($('#chart'), {
-    type: 'bar',
-    data: {
-        datasets: [{
-            label: '# of Visits',
-            borderWidth: 1
-        }]
-    }
-});
-
-window.chart = chart;
-
-$(document).ready(function() {
-    $.getJSON('/yarn/visits', function(data) {
-        console.log(data);
-
-        data.elements.forEach(function(entry) {
-            window.chart.data.labels.push(entry.date);
-
-            window.chart.data.datasets.forEach(function(dataset) {
-                dataset.data.push(entry.count);
-            });
-        });
-
-        window.chart.update();
-    });
-});
-</script>
 {% endblock %}

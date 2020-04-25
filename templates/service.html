@@ -1,0 +1,80 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="content">
+    <h2 class="subtitle"><a href="{{ url('home') }}">Service</a>: {{ service }}</h2>
+    <h3>Overview</h3>
+    <div class="columns">
+        <div class="column">
+            <table class="table">
+                <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Visits</th>
+                    <th>Unique IPs</th>
+                </tr>
+                </thead>
+                <tbody>
+                {% for date, row in overview.items() %}
+                <tr>
+                    <td>{{ date }}</td>
+                    <td>{{ row['visits'] }}</td>
+                    <td>{{ row['unique'] }}</td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <div class="column">
+            <canvas id="chart" style="height: 20em; width: 100%; display: block;"></canvas>
+        </div>
+    </div>
+    <script>
+var chart = new Chart($('#chart'), {
+    type: 'bar',
+    data: {
+        datasets: [{
+            label: '# of Visits',
+            borderWidth: 1
+        }]
+    }
+});
+
+window.chart = chart;
+
+$(document).ready(function() {
+    $.getJSON('{{ url('query', service=service, query='visits') }}', function(data) {
+        console.log(data);
+
+        data.elements.forEach(function(entry) {
+            window.chart.data.labels.push(entry.date);
+
+            window.chart.data.datasets.forEach(function(dataset) {
+                dataset.data.push(entry.count);
+            });
+        });
+
+        window.chart.update();
+    });
+});
+    </script>
+    <h3>Paths</h3>
+    <table class="table">
+        <thead>
+        <tr>
+            <th>Date</th>
+            <th>Path</th>
+            <th>Visits</th>
+        </tr>
+        </thead>
+        <tbody>
+        {% for element in paths.elements %}
+        <tr>
+            <td>{{ element.date }}</td>
+            <td>{{ element.group }}</td>
+            <td>{{ element.count }}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

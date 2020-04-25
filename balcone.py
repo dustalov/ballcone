@@ -6,7 +6,7 @@ import asyncio
 import logging
 import re
 import sys
-from collections import deque
+from collections import OrderedDict, deque
 from datetime import date, datetime, timedelta
 from ipaddress import ip_address, IPv4Address, IPv6Address
 from typing import cast, Tuple, Union, Optional, Dict, Deque, Any
@@ -63,25 +63,20 @@ class Balcone:
     def bytes(self, service: str, start: date, stop: date) -> AverageResult:
         return self.dao.select_average(service, 'length', start, stop)
 
-    def os(self, service: str, start: date, stop: date, n: Optional[int]) -> CountResult:
-        return self.dao.select_count(service, 'ip', ascending=False, group='platform_name',
-                                     limit=self.unwrap_n(n), start=start, stop=stop)
+    def os(self, service: str, start: date, stop: date) -> CountResult:
+        return self.dao.select_count(service, 'ip', ascending=False, group='platform_name', start=start, stop=stop)
 
-    def browser(self, service: str, start: date, stop: date, n: Optional[int]) -> CountResult:
-        return self.dao.select_count(service, 'ip', ascending=False, group='browser_name',
-                                     limit=self.unwrap_n(n), start=start, stop=stop)
+    def browser(self, service: str, start: date, stop: date) -> CountResult:
+        return self.dao.select_count(service, 'ip', ascending=False, group='browser_name', start=start, stop=stop)
 
-    def uri(self, service: str, start: date, stop: date, n: Optional[int]) -> CountResult:
-        return self.dao.select_count(service, 'ip', ascending=False, group='path',
-                                     limit=self.unwrap_n(n), start=start, stop=stop)
+    def uri(self, service: str, start: date, stop: date) -> CountResult:
+        return self.dao.select_count(service, 'ip', ascending=False, group='path', start=start, stop=stop)
 
-    def ip(self, service: str, start: date, stop: date, n: Optional[int]) -> CountResult:
-        return self.dao.select_count(service, 'status', ascending=False, group='ip',
-                                     limit=self.unwrap_n(n), start=start, stop=stop)
+    def ip(self, service: str, start: date, stop: date) -> CountResult:
+        return self.dao.select_count(service, 'status', ascending=False, group='ip', start=start, stop=stop)
 
-    def country(self, service: str, start: date, stop: date, n: Optional[int]) -> CountResult:
-        return self.dao.select_count(service, 'ip', ascending=False, group='country_iso_code',
-                                     limit=self.unwrap_n(n), start=start, stop=stop)
+    def country(self, service: str, start: date, stop: date) -> CountResult:
+        return self.dao.select_count(service, 'ip', ascending=False, group='country_iso_code', start=start, stop=stop)
 
     def visits(self, service: str, start: date, stop: date) -> CountResult:
         return self.dao.select_count(service, 'ip', ascending=False, start=start, stop=stop)
@@ -228,7 +223,7 @@ class DebugProtocol(asyncio.Protocol):
             return
 
         stop = datetime.utcnow().date()
-        start = stop - timedelta(days=7)
+        start = stop - timedelta(days=6)
 
         response = None
 
@@ -239,24 +234,19 @@ class DebugProtocol(asyncio.Protocol):
             response = str(self.balcone.bytes(service, start, stop))
 
         if command == 'os':
-            n = int(parameter) if isint(parameter) else None
-            response = str(self.balcone.os(service, start, stop, n))
+            response = str(self.balcone.os(service, start, stop))
 
         if command == 'browser':
-            n = int(parameter) if isint(parameter) else None
-            response = str(self.balcone.browser(service, start, stop, n))
+            response = str(self.balcone.browser(service, start, stop))
 
         if command == 'uri':
-            n = int(parameter) if isint(parameter) else None
-            response = str(self.balcone.uri(service, start, stop, n))
+            response = str(self.balcone.uri(service, start, stop))
 
         if command == 'ip':
-            n = int(parameter) if isint(parameter) else None
-            response = str(self.balcone.ip(service, start, stop, n))
+            response = str(self.balcone.ip(service, start, stop))
 
         if command == 'country':
-            n = int(parameter) if isint(parameter) else None
-            response = str(self.balcone.country(service, start, stop, n))
+            response = str(self.balcone.country(service, start, stop))
 
         if command == 'visits':
             response = str(self.balcone.visits(service, start, stop))
@@ -278,13 +268,39 @@ class HTTPHandler:
 
     @aiohttp_jinja2.template('home.html')
     async def home(self, request: web.Request):
-        pass
+        services = self.balcone.dao.tables()
+        return {'services': services}
+
+    @aiohttp_jinja2.template('service.html')
+    async def service(self, request: web.Request):
+        service = request.match_info.get('service')
+
+        stop = datetime.utcnow().date()
+        start = stop - timedelta(days=6)
+
+        queries = {
+            'visits': self.balcone.visits(service, start, stop),
+            'unique': self.balcone.unique(service, start, stop)
+        }
+
+        overview: Dict[date, Dict[str, int]] = OrderedDict()
+
+        for query, result in queries.items():
+            for element in result.elements:
+                if element.date not in overview:
+                    overview[element.date] = {}
+
+                overview[element.date][query] = element.count
+
+        paths = self.balcone.uri(service, start, stop)
+
+        return {'service': service, 'overview': overview, 'paths': paths}
 
     async def query(self, request: web.Request):
         service, command = request.match_info['service'], request.match_info['query']
 
         stop = datetime.utcnow().date()
-        start = stop - timedelta(days=7)
+        start = stop - timedelta(days=6)
 
         parameter = request.query.get('parameter', None)
 
@@ -298,23 +314,23 @@ class HTTPHandler:
 
         if command == 'os':
             n = int(parameter) if isint(parameter) else None
-            response = self.balcone.os(service, start, stop, n)
+            response = self.balcone.os(service, start, stop)
 
         if command == 'browser':
             n = int(parameter) if isint(parameter) else None
-            response = self.balcone.browser(service, start, stop, n)
+            response = self.balcone.browser(service, start, stop)
 
         if command == 'uri':
             n = int(parameter) if isint(parameter) else None
-            response = self.balcone.uri(service, start, stop, n)
+            response = self.balcone.uri(service, start, stop)
 
         if command == 'ip':
             n = int(parameter) if isint(parameter) else None
-            response = self.balcone.ip(service, start, stop, n)
+            response = self.balcone.ip(service, start, stop)
 
         if command == 'country':
             n = int(parameter) if isint(parameter) else None
-            response = self.balcone.country(service, start, stop, n)
+            response = self.balcone.country(service, start, stop)
 
         if command == 'visits':
             response = self.balcone.visits(service, start, stop)
@@ -348,8 +364,9 @@ def main():
     app = web.Application()
     aiohttp_jinja2.setup(app, loader=jinja2.FileSystemLoader('templates'))
     handler = HTTPHandler(balcone, BalconeJSONEncoder())
-    app.router.add_get('/', handler.home)
-    app.router.add_get('/{service}/{query}', handler.query)
+    app.router.add_get('/', handler.home, name='home')
+    app.router.add_get('/{service}', handler.service, name='service')
+    app.router.add_get('/{service}/{query}', handler.query, name='query')
     web.run_app(app, host='127.0.0.1', port=8080)
 
     try:
