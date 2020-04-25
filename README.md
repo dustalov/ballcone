@@ -4,9 +4,8 @@ Balcone is a server-side log collector for Web analytics.
 
 ## Requirements
 
-* Python 3.6
-* [LevelDB](https://github.com/google/leveldb)
-* [Cap'n Proto](https://capnproto.org/)
+* Python 3.6+
+* [MonetDBLite for Python](https://github.com/monetDB/MonetDBLite-Python)
 
 ## Installation
 
