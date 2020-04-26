@@ -160,7 +160,7 @@ def isint(s: Optional[str]) -> bool:
 
 
 # nginx's output cannot be properly parsed by any parser I tried
-NGINX_SYSLOG = re.compile(r'\A\<[0-9]{1,3}\>.*?: (?P<message>.+)\Z')
+NGINX_SYSLOG = re.compile(r'\A<[0-9]{1,3}>.*?: (?P<message>.+)\Z')
 
 VALID_SERVICE = re.compile(r'\A[\S]+\Z')
 
@@ -289,7 +289,7 @@ class HTTPHandler:
         self.balcone = balcone
 
     @aiohttp_jinja2.template('root.html')
-    async def root(self, request: web.Request):
+    async def root(self, _: web.Request):
         today = datetime.utcnow().date()
 
         services = {}
