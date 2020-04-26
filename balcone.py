@@ -338,6 +338,7 @@ class HTTPHandler:
         return {
             'version': __version__,
             'services': services,
+            'current_page': 'service',
             'current_service': service,
             'overview': overview,
             'time': time,
@@ -376,6 +377,7 @@ class HTTPHandler:
         return {
             'version': __version__,
             'current_page': 'sql',
+            'title': 'SQL Console',
             'services': services,
             'sql': sql,
             'result': result,
