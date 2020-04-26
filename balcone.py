@@ -88,6 +88,42 @@ class Balcone:
     def unique(self, service: str, start: date, stop: date) -> CountResult:
         return self.dao.select_count(service, 'ip', start=start, stop=stop)
 
+    def handle_command(self, service: str, command: str, parameter: Optional[str],
+                       start: date, stop: date) -> Optional[Union[AverageResult, CountResult]]:
+        if command == 'time':
+            return self.time(service, start, stop)
+
+        if command == 'bytes':
+            return self.bytes(service, start, stop)
+
+        if command == 'os':
+            n = self.unwrap_n(int(cast(int, parameter)) if isint(parameter) else None)
+            return self.os(service, start, stop, n)
+
+        if command == 'browser':
+            n = self.unwrap_n(int(cast(int, parameter)) if isint(parameter) else None)
+            return self.browser(service, start, stop, n)
+
+        if command == 'uri':
+            n = self.unwrap_n(int(cast(int, parameter)) if isint(parameter) else None)
+            return self.uri(service, start, stop, n)
+
+        if command == 'ip':
+            n = self.unwrap_n(int(cast(int, parameter)) if isint(parameter) else None)
+            return self.ip(service, start, stop, n)
+
+        if command == 'country':
+            n = self.unwrap_n(int(cast(int, parameter)) if isint(parameter) else None)
+            return self.country(service, start, stop, n)
+
+        if command == 'visits':
+            return self.visits(service, start, stop)
+
+        if command == 'unique':
+            return self.unique(service, start, stop)
+
+        return None
+
     @staticmethod
     def unwrap_n(n: Optional[int]) -> int:
         return n if n else Balcone.N
@@ -102,12 +138,12 @@ class Balcone:
             return 'UNKNOWN'
 
 
-def isint(str: str) -> bool:
-    if not str:
+def isint(s: Optional[str]) -> bool:
+    if not s:
         return False
 
     try:
-        value = int(str)
+        value = int(s)
         return value != 0
     except ValueError:
         return False
@@ -229,42 +265,10 @@ class DebugProtocol(asyncio.Protocol):
         stop = datetime.utcnow().date()
         start = stop - timedelta(days=6)
 
-        response = None
-
-        if command == 'time':
-            response = str(self.balcone.time(service, start, stop))
-
-        if command == 'bytes':
-            response = str(self.balcone.bytes(service, start, stop))
-
-        if command == 'os':
-            n = Balcone.unwrap_n(int(parameter) if isint(parameter) else None)
-            response = str(self.balcone.os(service, start, stop, n))
-
-        if command == 'browser':
-            n = Balcone.unwrap_n(int(parameter) if isint(parameter) else None)
-            response = str(self.balcone.browser(service, start, stop, n))
-
-        if command == 'uri':
-            n = Balcone.unwrap_n(int(parameter) if isint(parameter) else None)
-            response = str(self.balcone.uri(service, start, stop, n))
-
-        if command == 'ip':
-            n = Balcone.unwrap_n(int(parameter) if isint(parameter) else None)
-            response = str(self.balcone.ip(service, start, stop, n))
-
-        if command == 'country':
-            n = Balcone.unwrap_n(int(parameter) if isint(parameter) else None)
-            response = str(self.balcone.country(service, start, stop, n))
-
-        if command == 'visits':
-            response = str(self.balcone.visits(service, start, stop))
-
-        if command == 'unique':
-            response = str(self.balcone.unique(service, start, stop))
+        response = self.balcone.handle_command(service, command, parameter, start, stop)
 
         if response:
-            self.transport.write(response.encode('utf-8'))
+            self.transport.write(str(response).encode('utf-8'))
             self.transport.write(b'\n')
 
         self.transport.close()
@@ -319,39 +323,7 @@ class HTTPHandler:
 
         parameter = request.query.get('parameter', None)
 
-        response: Optional[Union[AverageResult, CountResult]] = None
-
-        if command == 'time':
-            response = self.balcone.time(service, start, stop)
-
-        if command == 'bytes':
-            response = self.balcone.bytes(service, start, stop)
-
-        if command == 'os':
-            n = Balcone.unwrap_n(int(parameter) if isint(parameter) else None)
-            response = self.balcone.os(service, start, stop, n)
-
-        if command == 'browser':
-            n = Balcone.unwrap_n(int(parameter) if isint(parameter) else None)
-            response = self.balcone.browser(service, start, stop, n)
-
-        if command == 'uri':
-            n = Balcone.unwrap_n(int(parameter) if isint(parameter) else None)
-            response = self.balcone.uri(service, start, stop, n)
-
-        if command == 'ip':
-            n = Balcone.unwrap_n(int(parameter) if isint(parameter) else None)
-            response = self.balcone.ip(service, start, stop, n)
-
-        if command == 'country':
-            n = Balcone.unwrap_n(int(parameter) if isint(parameter) else None)
-            response = self.balcone.country(service, start, stop, n)
-
-        if command == 'visits':
-            response = self.balcone.visits(service, start, stop)
-
-        if command == 'unique':
-            response = self.balcone.unique(service, start, stop)
+        response = self.balcone.handle_command(service, command, parameter, start, stop)
 
         return web.json_response(response, dumps=self.encoder.encode)
 
