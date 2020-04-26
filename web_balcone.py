@@ -94,8 +94,6 @@ class WebBalcone:
 
     @aiohttp_jinja2.template('sql.html')
     async def sql(self, request: web.Request):
-        services = self.balcone.dao.tables()
-
         data = await request.post()
         sql, result, error = str(data.get('sql', '')), [], ''
 
@@ -104,6 +102,8 @@ class WebBalcone:
                 result = self.balcone.dao.run(sql)
             except monetdblite.exceptions.DatabaseError as e:
                 error = str(e)
+
+        services = self.balcone.dao.tables()
 
         return {
             'version': __version__,
