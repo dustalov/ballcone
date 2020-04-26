@@ -2,7 +2,7 @@ export LANG := en_US.UTF-8
 
 -include Makefile.local
 
-run: balcone.py | .venv-installed
+run: app.py | .venv-installed
 	nice venv/bin/python3 $<
 
 mypy:
