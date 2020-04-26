@@ -5,3 +5,4 @@ aiohttp-jinja2==1.2.0
 monetdblite==0.6.3
 PyPika==0.37.1
 simplejson==3.17.0
+mypy
