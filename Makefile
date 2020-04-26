@@ -8,6 +8,9 @@ run: balcone.py | .venv-installed
 mypy:
 	mypy --ignore-missing-imports $(shell git ls-files '*.py')
 
+docker:
+	docker build --rm -t balcone .
+
 .venv-installed: requirements.txt
 	python3 -mvenv venv
 	venv/bin/pip3 install -r $<
