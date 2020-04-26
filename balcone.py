@@ -56,6 +56,9 @@ class Balcone:
             if count:
                 logging.debug(f'Inserted {count} entries for service {service}')
 
+    def check_service(self, service: str) -> bool:
+        return VALID_SERVICE.match(service) is not None and self.dao.table_exists(service)
+
     def time(self, service: str, start: date, stop: date) -> AverageResult:
         return self.dao.select_average(service, 'generation_time', start, stop)
 
@@ -226,7 +229,7 @@ class SyslogProtocol(asyncio.DatagramProtocol):
         self.balcone.queue[service].append(entry)
 
 
-HELLO_FORMAT = re.compile(r'\A(?P<command>[^\s]+?) (?P<service>[^\s]+?)(| (?P<parameter>[^\s]+))\n\Z')
+DEBUG_FORMAT = re.compile(r'\A(?P<command>[^\s]+?) (?P<service>[^\s]+?)(| (?P<parameter>[^\s]+))\n\Z')
 
 
 class DebugProtocol(asyncio.Protocol):
@@ -249,7 +252,7 @@ class DebugProtocol(asyncio.Protocol):
             self.transport.close()
             return
 
-        match = HELLO_FORMAT.match(message)
+        match = DEBUG_FORMAT.match(message)
 
         if not match:
             return
@@ -258,7 +261,7 @@ class DebugProtocol(asyncio.Protocol):
 
         logging.debug(f'Received command={command} service={service} parameter={parameter}')
 
-        if not service or not VALID_SERVICE.match(service) or not command:
+        if not service or not self.balcone.check_service(service) or not command:
             self.transport.close()
             return
 
@@ -288,7 +291,7 @@ class HTTPHandler:
     async def service(self, request: web.Request):
         service = request.match_info.get('service')
 
-        if not self.check_service(service):
+        if not self.balcone.check_service(service):
             raise web.HTTPNotFound(text=f'No such service: {service}')
 
         stop = datetime.utcnow().date()
@@ -315,7 +318,7 @@ class HTTPHandler:
     async def query(self, request: web.Request):
         service, command = request.match_info['service'], request.match_info['query']
 
-        if not self.check_service(service):
+        if not self.balcone.check_service(service):
             raise web.HTTPNotFound(text=f'No such service: {service}')
 
         stop = datetime.utcnow().date()
@@ -326,9 +329,6 @@ class HTTPHandler:
         response = self.balcone.handle_command(service, command, parameter, start, stop)
 
         return web.json_response(response, dumps=self.encoder.encode)
-
-    def check_service(self, service: str) -> bool:
-        return VALID_SERVICE.match(service) is not None and self.balcone.dao.table_exists(service)
 
 
 def main():
