@@ -5,7 +5,7 @@ from calendar import timegm
 from contextlib import contextmanager
 from datetime import datetime, date
 from ipaddress import ip_address, IPv4Address, IPv6Address
-from typing import Generator, NamedTuple, Optional, List, Sequence, Union, Any, NewType, Tuple, cast
+from typing import Generator, NamedTuple, Optional, List, Sequence, Union, Any, NewType, Tuple, Deque, cast
 
 import monetdblite
 from monetdblite.monetize import monet_identifier_escape
@@ -241,6 +241,20 @@ class MonetDAO:
         if entries:
             with self.cursor() as cursor:
                 for entry in entries:
+                    self.insert_into(table, entry, cursor=cursor)
+                    count += 1
+
+                cursor.commit()
+
+        return count
+
+    def batch_insert_into_from_deque(self, table: str, entries: Deque[Entry]) -> int:
+        count = 0
+
+        if entries:
+            with self.cursor() as cursor:
+                while entries:
+                    entry = entries.popleft()
                     self.insert_into(table, entry, cursor=cursor)
                     count += 1
 

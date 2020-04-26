@@ -50,12 +50,10 @@ class Balcone:
 
     def persist(self):
         for service, queue in self.queue.items():
-            count = self.dao.batch_insert_into(service, queue)
+            count = self.dao.batch_insert_into_from_deque(service, queue)
 
             if count:
                 logging.debug(f'Inserted {count} entries for service {service}')
-
-            queue.clear()
 
     def time(self, service: str, start: date, stop: date) -> AverageResult:
         return self.dao.select_average(service, 'generation_time', start, stop)
