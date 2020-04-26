@@ -38,7 +38,7 @@ class BalconeJSONEncoder(simplejson.JSONEncoder):
 
 
 class Balcone:
-    N = 10
+    N = 5
     DELAY = 5
 
     def __init__(self, dao: MonetDAO, geoip: maxminddb.reader.Reader):
