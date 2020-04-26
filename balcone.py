@@ -53,7 +53,7 @@ class Balcone:
             count = self.dao.batch_insert_into(service, queue)
 
             if count:
-                logging.debug('Inserted {:d} entries for service {}'.format(count, service))
+                logging.debug(f'Inserted {count} entries for service {service}')
 
             queue.clear()
 
@@ -133,29 +133,29 @@ class SyslogProtocol(asyncio.DatagramProtocol):
         try:
             message = data.decode('utf-8') if isinstance(data, bytes) else data
         except UnicodeDecodeError:
-            logging.info('Malformed UTF-8 received from {}'.format(addr))
+            logging.info(f'Malformed UTF-8 received from {addr}')
             return
 
         match = NGINX_SYSLOG.match(message)
 
         if not match or not match.group('message'):
-            logging.info('Missing payload from {}: {}'.format(addr, message))
+            logging.info(f'Missing payload from {addr}: {message}')
             return
 
         try:
             content = simplejson.loads(match.group('message'))
         except simplejson.JSONDecodeError:
-            logging.info('Malformed JSON received from {}: {}'.format(addr, message))
+            logging.info(f'Malformed JSON received from {addr}: {message}')
             return
 
         if 'service' not in content or not content['service']:
-            logging.info('Missing service field from {}: {}'.format(addr, message))
+            logging.info(f'Missing service field from {addr}: {message}')
             return
         else:
             service = content['service'].strip().lower()
 
         if not VALID_SERVICE.match(service):
-            logging.info('Malformed service field from {}: {}'.format(addr, message))
+            logging.info(f'Malformed service field from {addr}: {message}')
             return
 
         if service not in self.balcone.queue:
@@ -221,7 +221,7 @@ class DebugProtocol(asyncio.Protocol):
 
         command, service, parameter = match.group('command'), match.group('service'), match.group('parameter')
 
-        logging.debug('Received command={} service={} parameter={}'.format(command, service, parameter))
+        logging.debug(f'Received command={command} service={service} parameter={parameter}')
 
         if not service or not VALID_SERVICE.match(service) or not command:
             self.transport.close()
