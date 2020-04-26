@@ -352,7 +352,8 @@ class MonetDAO:
 
         query = Query.from_(target).select(target.date, group_field.as_('group'), count_field). \
             groupby(target.date, group_field).orderby(target.date). \
-            orderby(count_field, order=Order.asc if ascending else Order.desc)
+            orderby(count_field, order=Order.asc if ascending else Order.desc). \
+            orderby(group_field)
 
         query = self.apply_dates(query, target, start, stop)
 
