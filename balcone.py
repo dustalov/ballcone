@@ -19,7 +19,7 @@ import simplejson
 from aiohttp import web
 from geolite2 import geolite2, maxminddb
 
-from monetdb_dao import MonetDAO, Entry, AverageResult, CountResult
+from monetdb_dao import MonetDAO, Entry, AverageResult, CountResult, smallint
 
 logging.basicConfig(format='%(asctime)s %(message)s', level=logging.DEBUG)
 
@@ -29,7 +29,7 @@ class BalconeJSONEncoder(simplejson.JSONEncoder):
         if isinstance(obj, date):
             return obj.isoformat()
 
-        if isinstance(obj, IPv4Address) or isinstance(obj, IPv6Address):
+        if isinstance(obj, (IPv4Address, IPv6Address)):
             return str(obj)
 
         return super().default(obj)
@@ -63,26 +63,31 @@ class Balcone:
     def bytes(self, service: str, start: date, stop: date) -> AverageResult:
         return self.dao.select_average(service, 'length', start, stop)
 
-    def os(self, service: str, start: date, stop: date) -> CountResult:
-        return self.dao.select_count(service, 'ip', ascending=False, group='platform_name', start=start, stop=stop)
+    def os(self, service: str, start: date, stop: date, limit: Optional[int] = None) -> CountResult:
+        return self.dao.select_count_group(service, 'ip', 'platform_name', start=start, stop=stop,
+                                           ascending=False, limit=limit)
 
-    def browser(self, service: str, start: date, stop: date) -> CountResult:
-        return self.dao.select_count(service, 'ip', ascending=False, group='browser_name', start=start, stop=stop)
+    def browser(self, service: str, start: date, stop: date, limit: Optional[int] = None) -> CountResult:
+        return self.dao.select_count_group(service, 'ip', 'browser_name', start=start, stop=stop,
+                                           ascending=False, limit=limit)
 
-    def uri(self, service: str, start: date, stop: date) -> CountResult:
-        return self.dao.select_count(service, 'ip', ascending=False, group='path', start=start, stop=stop)
+    def uri(self, service: str, start: date, stop: date, limit: Optional[int] = None) -> CountResult:
+        return self.dao.select_count_group(service, 'ip', 'path', start=start, stop=stop,
+                                           ascending=False, limit=limit)
 
-    def ip(self, service: str, start: date, stop: date) -> CountResult:
-        return self.dao.select_count(service, 'status', ascending=False, group='ip', start=start, stop=stop)
+    def ip(self, service: str, start: date, stop: date, limit: Optional[int] = None) -> CountResult:
+        return self.dao.select_count_group(service, 'status', 'ip', start=start, stop=stop,
+                                           ascending=False, limit=limit)
 
-    def country(self, service: str, start: date, stop: date) -> CountResult:
-        return self.dao.select_count(service, 'ip', ascending=False, group='country_iso_code', start=start, stop=stop)
+    def country(self, service: str, start: date, stop: date, limit: Optional[int] = None) -> CountResult:
+        return self.dao.select_count_group(service, 'ip', 'country_iso_code', start=start, stop=stop,
+                                           ascending=False, limit=limit)
 
     def visits(self, service: str, start: date, stop: date) -> CountResult:
-        return self.dao.select_count(service, 'ip', ascending=False, start=start, stop=stop)
+        return self.dao.select_count(service, start=start, stop=stop)
 
     def unique(self, service: str, start: date, stop: date) -> CountResult:
-        return self.dao.select_count(service, 'ip', distinct=True, ascending=False, start=start, stop=stop)
+        return self.dao.select_count(service, 'ip', start=start, stop=stop)
 
     @staticmethod
     def unwrap_n(n: Optional[int]) -> int:
@@ -170,7 +175,7 @@ class SyslogProtocol(asyncio.DatagramProtocol):
             host=content['host'],
             method=content['request_method'],
             path=content['uri'],
-            status=int(content['status']),
+            status=cast(smallint, int(content['status'])),
             length=int(content['body_bytes_sent']),
             generation_time=float(content['request_time']),
             referer=content['http_referrer'],
@@ -234,19 +239,24 @@ class DebugProtocol(asyncio.Protocol):
             response = str(self.balcone.bytes(service, start, stop))
 
         if command == 'os':
-            response = str(self.balcone.os(service, start, stop))
+            n = Balcone.unwrap_n(int(parameter) if isint(parameter) else None)
+            response = str(self.balcone.os(service, start, stop, n))
 
         if command == 'browser':
-            response = str(self.balcone.browser(service, start, stop))
+            n = Balcone.unwrap_n(int(parameter) if isint(parameter) else None)
+            response = str(self.balcone.browser(service, start, stop, n))
 
         if command == 'uri':
-            response = str(self.balcone.uri(service, start, stop))
+            n = Balcone.unwrap_n(int(parameter) if isint(parameter) else None)
+            response = str(self.balcone.uri(service, start, stop, n))
 
         if command == 'ip':
-            response = str(self.balcone.ip(service, start, stop))
+            n = Balcone.unwrap_n(int(parameter) if isint(parameter) else None)
+            response = str(self.balcone.ip(service, start, stop, n))
 
         if command == 'country':
-            response = str(self.balcone.country(service, start, stop))
+            n = Balcone.unwrap_n(int(parameter) if isint(parameter) else None)
+            response = str(self.balcone.country(service, start, stop, n))
 
         if command == 'visits':
             response = str(self.balcone.visits(service, start, stop))
@@ -295,7 +305,7 @@ class HTTPHandler:
 
                 overview[element.date][query] = element.count
 
-        paths = self.balcone.uri(service, start, stop)
+        paths = self.balcone.uri(service, start, stop, Balcone.N)
 
         return {'service': service, 'overview': overview, 'paths': paths}
 
@@ -319,24 +329,24 @@ class HTTPHandler:
             response = self.balcone.bytes(service, start, stop)
 
         if command == 'os':
-            n = int(parameter) if isint(parameter) else None
-            response = self.balcone.os(service, start, stop)
+            n = Balcone.unwrap_n(int(parameter) if isint(parameter) else None)
+            response = self.balcone.os(service, start, stop, n)
 
         if command == 'browser':
-            n = int(parameter) if isint(parameter) else None
-            response = self.balcone.browser(service, start, stop)
+            n = Balcone.unwrap_n(int(parameter) if isint(parameter) else None)
+            response = self.balcone.browser(service, start, stop, n)
 
         if command == 'uri':
-            n = int(parameter) if isint(parameter) else None
-            response = self.balcone.uri(service, start, stop)
+            n = Balcone.unwrap_n(int(parameter) if isint(parameter) else None)
+            response = self.balcone.uri(service, start, stop, n)
 
         if command == 'ip':
-            n = int(parameter) if isint(parameter) else None
-            response = self.balcone.ip(service, start, stop)
+            n = Balcone.unwrap_n(int(parameter) if isint(parameter) else None)
+            response = self.balcone.ip(service, start, stop, n)
 
         if command == 'country':
-            n = int(parameter) if isint(parameter) else None
-            response = self.balcone.country(service, start, stop)
+            n = Balcone.unwrap_n(int(parameter) if isint(parameter) else None)
+            response = self.balcone.country(service, start, stop, n)
 
         if command == 'visits':
             response = self.balcone.visits(service, start, stop)
@@ -347,7 +357,7 @@ class HTTPHandler:
         return web.json_response(response, dumps=self.encoder.encode)
 
     def check_service(self, service: str) -> bool:
-        return VALID_SERVICE.match(service) and self.balcone.dao.table_exists(service)
+        return VALID_SERVICE.match(service) is not None and self.balcone.dao.table_exists(service)
 
 
 def main():

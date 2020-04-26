@@ -5,10 +5,75 @@ from calendar import timegm
 from contextlib import contextmanager
 from datetime import datetime, date
 from ipaddress import ip_address, IPv4Address, IPv6Address
-from typing import Generator, NamedTuple, Optional, List, Sequence, Union, Any
+from typing import Generator, NamedTuple, Optional, List, Sequence, Union, Any, NewType, Tuple, cast
 
 import monetdblite
-from monetdblite.monetize import monet_escape, monet_identifier_escape
+from monetdblite.monetize import monet_identifier_escape
+from pypika import Query, Column, Field, Table, Order, functions as fn, analytics as an
+
+smallint = NewType('smallint', int)
+
+TYPES = {
+    datetime: 'BIGINT',
+    date: 'INT',
+    str: 'TEXT',
+    smallint: 'SMALLINT',
+    int: 'INT',
+    float: 'DOUBLE',
+    IPv4Address: 'TEXT',
+    IPv6Address: 'TEXT',
+    bool: 'BOOL'
+}
+
+
+def python_type_to_sql(annotation: Any) -> str:
+    if hasattr(annotation, '__args__'):
+        args = set(annotation.__args__)
+    else:
+        args = {annotation}
+
+    null = type(None) in args
+
+    if null:
+        args.remove(type(None))
+
+    item = next(iter(args))
+
+    if null:
+        return TYPES[item]
+    else:
+        return TYPES[item] + ' NOT NULL'
+
+
+def sql_value_to_python(name: str, annotation: Any, value: Any) -> Any:
+    if value is None:
+        return value
+
+    if hasattr(annotation, '__args__'):
+        args = set(annotation.__args__)
+    else:
+        args = {annotation}
+
+    null = type(None) in args
+
+    if null:
+        args.remove(type(None))
+
+    item = next(iter(args))
+
+    if item == datetime:
+        return datetime.utcfromtimestamp(value)
+
+    if item == date:
+        return date.fromordinal(value)
+
+    if item == smallint:
+        return int(value)
+
+    if item in (IPv4Address, IPv6Address):
+        return ip_address(value)
+
+    return None if not value and null else item(value)
 
 
 class Entry(NamedTuple):
@@ -17,9 +82,9 @@ class Entry(NamedTuple):
     host: str
     method: str
     path: str
-    status: int
+    status: smallint
     length: int
-    generation_time: float
+    generation_time: Optional[float]
     referer: Optional[str]
     # IP address and derivatives
     ip: Union[IPv4Address, IPv6Address]
@@ -30,6 +95,27 @@ class Entry(NamedTuple):
     browser_name: Optional[str]
     browser_version: Optional[str]
     is_robot: Optional[bool]
+
+    @staticmethod
+    def from_values(entry: Tuple) -> 'Entry':
+        return Entry(*(sql_value_to_python(name, annotation, value)
+                       for (name, annotation), value in zip(Entry.__annotations__.items(), entry)))
+
+    @staticmethod
+    def as_value(value: Any) -> Any:
+        if isinstance(value, datetime):
+            return timegm(cast(datetime, value).utctimetuple())
+
+        if isinstance(value, date):
+            return cast(date, value).toordinal()
+
+        if isinstance(value, (IPv4Address, IPv6Address)):
+            return str(value)
+
+        return value
+
+    def as_values(self) -> Tuple:
+        return tuple(self.as_value(getattr(self, name)) for name in self.__annotations__)
 
 
 class Count(NamedTuple):
@@ -68,87 +154,82 @@ class MonetDAO:
     def close(self):
         self.db.close()
 
-    def schema_exists(self):
-        stmt = f'SELECT name FROM sys.schemas WHERE name = {monet_escape(self.schema)};'
+    def schema_exists(self) -> bool:
+        schemas = Table('schemas', schema='sys')
 
-        logging.info(stmt)
+        query = Query.from_(schemas).select(schemas.name). \
+            where(schemas.name == self.schema)
 
-        result = self.db.execute(stmt)
+        logging.info(query)
+
+        result = self.db.execute(str(query))
 
         return result['name'].size > 0
 
     def create_schema(self):
-        stmt = f'CREATE SCHEMA {monet_identifier_escape(self.schema)};'
+        query = f'CREATE SCHEMA {monet_identifier_escape(self.schema)};'
 
-        logging.info(stmt)
+        logging.info(query)
 
         with self.cursor() as cursor:
-            result = cursor.execute(stmt)
+            result = cursor.execute(query)
             cursor.commit()
             return result
 
     def tables(self) -> Sequence[str]:
-        stmt = f'SELECT tables.name AS name ' \
-               f'FROM sys.tables AS tables JOIN sys.schemas AS schemas ON schemas.id = tables.schema_id ' \
-               f'WHERE schemas.name = {monet_escape(self.schema)};'
+        schemas = Table('schemas', schema='sys')
+        tables = Table('tables', schema='sys')
 
-        logging.info(stmt)
+        query = Query.from_(tables).select(tables.name). \
+            join(schemas).on(schemas.id == tables.schema_id). \
+            where(schemas.name == self.schema)
 
-        result = self.db.execute(stmt)
+        logging.info(query)
+
+        result = self.db.execute(str(query))
 
         return result['name'].tolist()
 
-    def table_exists(self, table: str):
-        stmt = f'SELECT tables.name AS name ' \
-               f'FROM sys.tables AS tables JOIN sys.schemas AS schemas ON schemas.id = tables.schema_id ' \
-               f'WHERE schemas.name = {monet_escape(self.schema)} AND tables.name = {monet_escape(table)};'
+    def table_exists(self, table: str) -> bool:
+        schemas = Table('schemas', schema='sys')
+        tables = Table('tables', schema='sys')
 
-        logging.info(stmt)
+        query = Query.from_(tables).select(tables.name). \
+            join(schemas).on(schemas.id == tables.schema_id). \
+            where((schemas.name == self.schema) & (tables.name == table))
 
-        result = self.db.execute(stmt)
+        logging.info(query)
+
+        result = self.db.execute(str(query))
 
         return result['name'].size > 0
 
     def create_table(self, table: str):
-        stmt = f'CREATE TABLE {monet_identifier_escape(self.schema)}.{monet_identifier_escape(table)} (' \
-               f'datetime BIGINT NOT NULL, ' \
-               f'date INT NOT NULL, ' \
-               f'host TEXT NOT NULL, ' \
-               f'method TEXT NOT NULL, ' \
-               f'path TEXT NOT NULL, ' \
-               f'status SMALLINT NOT NULL, ' \
-               f'length INT NOT NULL, ' \
-               f'generation_time DOUBLE, ' \
-               f'referer TEXT, ' \
-               f'ip TEXT NOT NULL, ' \
-               f'country_iso_code TEXT NOT NULL, ' \
-               f'platform_name TEXT, ' \
-               f'platform_version TEXT, ' \
-               f'browser_name TEXT, ' \
-               f'browser_version TEXT, ' \
-               f'is_robot BOOL' \
-               f');'
+        target = Table(table, schema=self.schema)
 
-        logging.info(stmt)
+        columns = [Column(name, python_type_to_sql(annotation)) for name, annotation in Entry.__annotations__.items()]
+
+        query = Query.create_table(target).columns(*columns)
+
+        logging.info(query)
 
         with self.cursor() as cursor:
-            result = cursor.execute(stmt)
+            result = cursor.execute(str(query))
             cursor.commit()
             return result
 
     def insert_into(self, table: str, entry: Entry, cursor: Optional[monetdblite.cursors.Cursor] = None) -> int:
-        value_stmt = self.value_entry(entry)
+        target = Table(table, schema=self.schema)
 
-        stmt = f'INSERT INTO {monet_identifier_escape(self.schema)}.{monet_identifier_escape(table)} ' \
-               f'VALUES {value_stmt};'
+        query = Query.into(target).insert(*entry.as_values())
 
-        logging.info(stmt)
+        logging.info(query)
 
         if cursor:
-            return cursor.execute(stmt, discard_previous=False)
+            return cursor.execute(str(query), discard_previous=False)
         else:
             with self.cursor() as cursor:
-                result = cursor.execute(stmt)
+                result = cursor.execute(str(query))
 
                 cursor.commit()
 
@@ -167,43 +248,18 @@ class MonetDAO:
 
         return count
 
-    @staticmethod
-    def value_entry(entry: Entry) -> str:
-        return f'(' \
-               f'{monet_escape(timegm(entry.datetime.utctimetuple()))}, ' \
-               f'{monet_escape(entry.date.toordinal())}, ' \
-               f'{monet_escape(entry.host)}, ' \
-               f'{monet_escape(entry.method)}, ' \
-               f'{monet_escape(entry.path)}, ' \
-               f'{monet_escape(entry.status)}, ' \
-               f'{monet_escape(entry.length)}, ' \
-               f'{monet_escape(entry.generation_time)}, ' \
-               f'{monet_escape(entry.referer) if entry.referer else "NULL"}, ' \
-               f'{monet_escape(entry.ip)}, ' \
-               f'{monet_escape(entry.country_iso_code)}, ' \
-               f'{monet_escape(entry.platform_name) if entry.platform_name else "NULL"}, ' \
-               f'{monet_escape(entry.platform_version) if entry.platform_version else "NULL"}, ' \
-               f'{monet_escape(entry.browser_name) if entry.browser_name else "NULL"}, ' \
-               f'{monet_escape(entry.browser_version) if entry.browser_version else "NULL"}, ' \
-               f'{monet_escape(entry.is_robot) if entry.is_robot is not None else "NULL"}' \
-               f')'
+    def select(self, table: str, start: Optional[date] = None, stop: Optional[date] = None,
+               limit: Optional[int] = None) -> List[Entry]:
+        target = Table(table, schema=self.schema)
 
-    def select(self, table: str, start: date = None, stop: date = None, limit: int = None) -> List[Entry]:
-        where_stmt = self.where_dates(start, stop)
+        query = Query.from_(target).select('*').orderby(target.date).limit(limit)
 
-        if where_stmt:
-            where_stmt = ' WHERE ' + where_stmt
+        query = self.apply_dates(query, target, start, stop)
 
-        limit_stmt = f' LIMIT {int(limit)}' if limit is not None else ''
-
-        stmt = f'SELECT * ' \
-               f'FROM {monet_identifier_escape(self.schema)}.{monet_identifier_escape(table)}' \
-               f'{where_stmt} ORDER BY date{limit_stmt};'
-
-        logging.info(stmt)
+        logging.info(query)
 
         with self.cursor() as cursor:
-            cursor.execute(stmt)
+            cursor.execute(str(query))
 
             results = []
 
@@ -213,36 +269,26 @@ class MonetDAO:
                 if not current:
                     break
 
-                current[0] = datetime.utcfromtimestamp(current[0])  # datetime
-                current[1] = date.fromordinal(current[1])  # date
-                current[5] = int(current[5]) if current[5] is not None else None  # status
-                current[6] = int(current[6]) if current[6] is not None else None  # length
-                current[7] = float(current[7]) if current[7] is not None else None  # length
-                current[8] = current[8] if current[8] else None  # referer
-                current[9] = ip_address(current[9]) if current[9] else None  # ip
-                current[15] = bool(current[15]) if current[15] is not None else None  # is_robot
-
-                results.append(Entry(*current))
+                results.append(Entry.from_values(current))
 
             return results
 
     def select_average(self, table: str, field: str, start: date = None, stop: date = None) -> AverageResult:
-        where_stmt = self.where_dates(start, stop)
+        target = Table(table, schema=self.schema)
+        target_field = Field(field, table=target)
 
-        if where_stmt:
-            where_stmt = ' WHERE ' + where_stmt
+        query = Query.from_(target).select(target.date,
+                                           fn.Avg(target_field, alias='average'),
+                                           fn.Sum(target_field, alias='sum'),
+                                           fn.Count(target_field, alias='count')). \
+            groupby(target.date).orderby(target.date)
 
-        stmt = f'SELECT date, ' \
-               f'AVG({monet_identifier_escape(field)}) AS average, ' \
-               f'SUM({monet_identifier_escape(field)}) AS sum, ' \
-               f'COUNT({monet_identifier_escape(field)}) AS count ' \
-               f'FROM {monet_identifier_escape(self.schema)}.{monet_identifier_escape(table)}' \
-               f'{where_stmt} GROUP BY date ORDER BY date;'
+        query = self.apply_dates(query, target, start, stop)
 
-        logging.info(stmt)
+        logging.info(query)
 
         with self.cursor() as cursor:
-            cursor.execute(stmt)
+            cursor.execute(str(query))
 
             result = AverageResult(table=table, field=field, elements=[])
 
@@ -253,75 +299,91 @@ class MonetDAO:
                     date=current_date,
                     avg=float(current[1]),
                     sum=float(current[2]) if current[3] else 0.,
-                    count=int(current[2])
+                    count=int(current[3])
                 ))
 
             return result
 
-    def select_count(self, table: str, field: Optional[str], distinct: bool = False,
-                     start: Optional[date] = None, stop: Optional[date] = None,
-                     ascending: Optional[bool] = None, group: Optional[str] = None, limit: int = None) -> CountResult:
-        where_stmt = self.where_dates(start, stop)
+    def select_count(self, table: str, field: Optional[str] = None, start: Optional[date] = None,
+                     stop: Optional[date] = None) -> CountResult:
+        target = Table(table, schema=self.schema)
+        count_field = fn.Count(Field(field, table=target) if field else target.date, alias='count')
 
-        if where_stmt:
-            where_stmt = ' WHERE ' + where_stmt
+        if field:
+            count_field = count_field.distinct()
 
-        if distinct:
-            count_stmt = f'DISTINCT {monet_identifier_escape(field if field else "1")}'
-        else:
-            count_stmt = f'{monet_identifier_escape(field) if field else "*"}'
+        query = Query.from_(target).select(target.date, count_field).groupby(target.date).orderby(target.date)
 
-        if group:
-            select_group_stmt = f', {monet_identifier_escape(group)} AS _group_'
-            group_by_stmt = f', {monet_identifier_escape(group)}'
-        else:
-            select_group_stmt = ', 0 AS _group_'
-            group_by_stmt = ''
+        query = self.apply_dates(query, target, start, stop)
 
-        limit_stmt = f' LIMIT {int(limit)}' if limit is not None else ''
-
-        if ascending is None:
-            order_stmt = ''
-        elif ascending:
-            order_stmt = ', count'
-        else:
-            order_stmt = ', count DESC'
-
-        stmt = f'SELECT date{select_group_stmt}, COUNT({count_stmt}) AS count ' \
-               f'FROM {monet_identifier_escape(self.schema)}.{monet_identifier_escape(table)}' \
-               f'{where_stmt} GROUP BY date{group_by_stmt} ORDER BY date{order_stmt}{limit_stmt};'
-
-        logging.info(stmt)
+        logging.info(query)
 
         with self.cursor() as cursor:
-            cursor.execute(stmt)
+            cursor.execute(str(query))
 
-            result = CountResult(table=table, field=field,
-                                 distinct=distinct, group=group, ascending=ascending,
+            result = CountResult(table=table, field=field, distinct=field is not None, group=None, ascending=None,
                                  elements=[])
 
             for current in cursor:
-                current_date = date.fromordinal(current[0])
-
                 result.elements.append(Count(
-                    date=current_date,
-                    group=str(current[1]) if current[1] else None,
+                    date=date.fromordinal(current[0]),
+                    group=None,
+                    count=int(current[1])
+                ))
+
+            return result
+
+    def select_count_group(self, table: str, field: Optional[str], group: str, distinct: bool = False,
+                           start: Optional[date] = None, stop: Optional[date] = None,
+                           ascending: bool = True, limit: Optional[int] = None):
+        target = Table(table, schema=self.schema)
+        count_field = fn.Count(Field(field, table=target) if field else target.date, alias='count')
+
+        if distinct:
+            count_field = count_field.distinct()
+
+        group_field = Field(group, table=target)
+
+        query = Query.from_(target).select(target.date, group_field.as_('group'), count_field). \
+            groupby(target.date, group_field).orderby(target.date). \
+            orderby(count_field, order=Order.asc if ascending else Order.desc)
+
+        query = self.apply_dates(query, target, start, stop)
+
+        if limit is not None:
+            window = Query.from_(query).select(query.date, query.group, query.count,
+                                               an.RowNumber(alias='row_number').over(query.date))
+
+            query = Query.from_(window).select(window.date, window.group, window.count). \
+                where(window.row_number <= limit)
+
+        logging.info(query)
+
+        with self.cursor() as cursor:
+            cursor.execute(str(query))
+
+            result = CountResult(table=table, field=field, distinct=distinct, group=group, ascending=ascending,
+                                 elements=[])
+
+            for current in cursor:
+                result.elements.append(Count(
+                    date=date.fromordinal(current[0]),
+                    group=current[1],
                     count=int(current[2])
                 ))
 
             return result
 
     @staticmethod
-    def where_dates(start: Optional[date] = None, stop: Optional[date] = None) -> str:
+    def apply_dates(query: Query, target: Table, start: Optional[date] = None, stop: Optional[date] = None) -> Query:
         if start and stop:
-            return f'{monet_identifier_escape("date")} BETWEEN {monet_escape(start.toordinal())} ' \
-                   f'AND {monet_escape(stop.toordinal())}'
+            return query.where(target.date[Entry.as_value(start):Entry.as_value(stop)])
         elif start:
-            return f'{monet_identifier_escape("date")} >= {monet_escape(start.toordinal())}'
+            return query.where(target.date >= Entry.as_value(start))
         elif stop:
-            return f'{monet_identifier_escape("date")} <= {monet_escape(stop.toordinal())}'
+            return query.where(target.date <= Entry.as_value(stop))
 
-        return ''
+        return query
 
     @contextmanager
     def cursor(self) -> Generator[monetdblite.cursors.Cursor, None, None]:
