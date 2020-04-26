@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 __author__ = 'Dmitry Ustalov'
+__version__ = 0
 
 import asyncio
 import logging
@@ -298,7 +299,7 @@ class HTTPHandler:
 
             services[service] = count.elements[0].count if count.elements else 0
 
-        return {'current_page': 'root', 'services': services}
+        return {'version': __version__, 'current_page': 'root', 'services': services}
 
     async def services(self, request: web.Request):
         raise web.HTTPFound(request.app.router['root'].url_for())
@@ -335,6 +336,7 @@ class HTTPHandler:
         browsers = self.balcone.browser(service, start, stop, limit=Balcone.N)
 
         return {
+            'version': __version__,
             'services': services,
             'current_service': service,
             'overview': overview,
