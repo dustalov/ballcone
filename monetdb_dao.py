@@ -5,7 +5,7 @@ from calendar import timegm
 from contextlib import contextmanager
 from datetime import datetime, date
 from ipaddress import ip_address, IPv4Address, IPv6Address
-from typing import Generator, NamedTuple, Optional, List, Sequence, Union, Any, NewType, Tuple, Deque, cast
+from typing import Generator, NamedTuple, Optional, List, Sequence, Union, Any, NewType, Tuple, Deque, Set, cast
 
 import monetdblite
 from monetdblite.monetize import monet_identifier_escape
@@ -26,54 +26,46 @@ TYPES = {
 }
 
 
-def python_type_to_sql(annotation: Any) -> str:
+def optional_types(annotation: Any) -> Tuple[Set[Any], bool]:
     if hasattr(annotation, '__args__'):
-        args = set(annotation.__args__)
-    else:
-        args = {annotation}
+        types = set(annotation.__args__)
+        null = type(None) in types
 
-    null = type(None) in args
+        if null:
+            types.remove(type(None))
+
+        return types, null
+    else:
+        return {annotation}, False
+
+
+def python_type_to_sql(annotation: Any) -> str:
+    types, null = optional_types(annotation)
+    first_type = next(iter(types))
 
     if null:
-        args.remove(type(None))
-
-    item = next(iter(args))
-
-    if null:
-        return TYPES[item]
+        return TYPES[first_type]
     else:
-        return TYPES[item] + ' NOT NULL'
+        return TYPES[first_type] + ' NOT NULL'
 
 
 def sql_value_to_python(name: str, annotation: Any, value: Any) -> Any:
-    if value is None:
-        return value
+    args, null = optional_types(annotation)
+    first_type = next(iter(args))
 
-    if hasattr(annotation, '__args__'):
-        args = set(annotation.__args__)
-    else:
-        args = {annotation}
-
-    null = type(None) in args
-
-    if null:
-        args.remove(type(None))
-
-    item = next(iter(args))
-
-    if item == datetime:
+    if first_type == datetime:
         return datetime.utcfromtimestamp(value)
 
-    if item == date:
+    if first_type == date:
         return date.fromordinal(value)
 
-    if item == smallint:
+    if first_type == smallint:
         return int(value)
 
-    if item in (IPv4Address, IPv6Address):
+    if first_type in (IPv4Address, IPv6Address):
         return ip_address(value)
 
-    return None if not value and null else item(value)
+    return None if not value and null else first_type(value)
 
 
 class Entry(NamedTuple):
