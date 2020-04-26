@@ -66,25 +66,30 @@ class Balcone:
     def bytes(self, service: str, start: date, stop: date) -> AverageResult:
         return self.dao.select_average(service, 'length', start, stop)
 
-    def os(self, service: str, start: date, stop: date, limit: Optional[int] = None) -> CountResult:
-        return self.dao.select_count_group(service, 'ip', 'platform_name', start=start, stop=stop,
-                                           ascending=False, limit=limit)
+    def os(self, service: str, start: date, stop: date,
+           distinct: bool = False, limit: Optional[int] = None) -> CountResult:
+        return self.dao.select_count_group(service, 'ip', 'platform_name', distinct=distinct,
+                                           start=start, stop=stop, ascending=False, limit=limit)
 
-    def browser(self, service: str, start: date, stop: date, limit: Optional[int] = None) -> CountResult:
-        return self.dao.select_count_group(service, 'ip', 'browser_name', start=start, stop=stop,
-                                           ascending=False, limit=limit)
+    def browser(self, service: str, start: date, stop: date,
+                distinct: bool = False, limit: Optional[int] = None) -> CountResult:
+        return self.dao.select_count_group(service, 'ip', 'browser_name', distinct=distinct,
+                                           start=start, stop=stop, ascending=False, limit=limit)
 
-    def uri(self, service: str, start: date, stop: date, limit: Optional[int] = None) -> CountResult:
-        return self.dao.select_count_group(service, 'ip', 'path', start=start, stop=stop,
-                                           ascending=False, limit=limit)
+    def uri(self, service: str, start: date, stop: date,
+            distinct: bool = False, limit: Optional[int] = None) -> CountResult:
+        return self.dao.select_count_group(service, 'ip', 'path', distinct=distinct,
+                                           start=start, stop=stop, ascending=False, limit=limit)
 
-    def ip(self, service: str, start: date, stop: date, limit: Optional[int] = None) -> CountResult:
-        return self.dao.select_count_group(service, 'status', 'ip', start=start, stop=stop,
-                                           ascending=False, limit=limit)
+    def ip(self, service: str, start: date, stop: date,
+           distinct: bool = False, limit: Optional[int] = None) -> CountResult:
+        return self.dao.select_count_group(service, 'status', 'ip', distinct=distinct,
+                                           start=start, stop=stop, ascending=False, limit=limit)
 
-    def country(self, service: str, start: date, stop: date, limit: Optional[int] = None) -> CountResult:
-        return self.dao.select_count_group(service, 'ip', 'country_iso_code', start=start, stop=stop,
-                                           ascending=False, limit=limit)
+    def country(self, service: str, start: date, stop: date,
+                distinct: bool = False, limit: Optional[int] = None) -> CountResult:
+        return self.dao.select_count_group(service, 'ip', 'country_iso_code', distinct=distinct,
+                                           start=start, stop=stop, ascending=False, limit=limit)
 
     def visits(self, service: str, start: date, stop: date) -> CountResult:
         return self.dao.select_count(service, start=start, stop=stop)
@@ -102,23 +107,23 @@ class Balcone:
 
         if command == 'os':
             n = self.unwrap_n(int(cast(int, parameter)) if isint(parameter) else None)
-            return self.os(service, start, stop, n)
+            return self.os(service, start, stop, limit=n)
 
         if command == 'browser':
             n = self.unwrap_n(int(cast(int, parameter)) if isint(parameter) else None)
-            return self.browser(service, start, stop, n)
+            return self.browser(service, start, stop, limit=n)
 
         if command == 'uri':
             n = self.unwrap_n(int(cast(int, parameter)) if isint(parameter) else None)
-            return self.uri(service, start, stop, n)
+            return self.uri(service, start, stop, limit=n)
 
         if command == 'ip':
             n = self.unwrap_n(int(cast(int, parameter)) if isint(parameter) else None)
-            return self.ip(service, start, stop, n)
+            return self.ip(service, start, stop, limit=n)
 
         if command == 'country':
             n = self.unwrap_n(int(cast(int, parameter)) if isint(parameter) else None)
-            return self.country(service, start, stop, n)
+            return self.country(service, start, stop, limit=n)
 
         if command == 'visits':
             return self.visits(service, start, stop)
@@ -267,7 +272,7 @@ class DebugProtocol(asyncio.Protocol):
             return
 
         stop = datetime.utcnow().date()
-        start = stop - timedelta(days=6)
+        start = stop - timedelta(days=7 - 1)
 
         response = self.balcone.handle_command(service, command, parameter, start, stop)
 
@@ -282,20 +287,32 @@ class HTTPHandler:
     def __init__(self, balcone: Balcone):
         self.balcone = balcone
 
-    @aiohttp_jinja2.template('home.html')
-    async def home(self, request: web.Request):
-        services = self.balcone.dao.tables()
-        return {'services': services}
+    @aiohttp_jinja2.template('root.html')
+    async def root(self, request: web.Request):
+        today = datetime.utcnow().date()
+
+        services = {}
+
+        for service in self.balcone.dao.tables():
+            count = self.balcone.visits(service, today, today)
+
+            services[service] = count.elements[0].count if count.elements else 0
+
+        return {'current_page': 'root', 'services': services}
+
+    async def services(self, request: web.Request):
+        raise web.HTTPFound(request.app.router['root'].url_for())
 
     @aiohttp_jinja2.template('service.html')
     async def service(self, request: web.Request):
+        services = self.balcone.dao.tables()
         service = request.match_info.get('service')
 
         if not self.balcone.check_service(service):
             raise web.HTTPNotFound(text=f'No such service: {service}')
 
         stop = datetime.utcnow().date()
-        start = stop - timedelta(days=6)
+        start = stop - timedelta(days=7 - 1)
 
         queries = {
             'visits': self.balcone.visits(service, start, stop),
@@ -311,9 +328,20 @@ class HTTPHandler:
 
                 overview[element.date][query] = element.count
 
-        paths = self.balcone.uri(service, start, stop, Balcone.N)
+        time = self.balcone.time(service, start, stop)
 
-        return {'service': service, 'overview': overview, 'paths': paths}
+        paths = self.balcone.uri(service, start, stop, limit=Balcone.N)
+
+        browsers = self.balcone.browser(service, start, stop, limit=Balcone.N)
+
+        return {
+            'services': services,
+            'current_service': service,
+            'overview': overview,
+            'time': time,
+            'paths': paths,
+            'browsers': browsers
+        }
 
     async def query(self, request: web.Request):
         service, command = request.match_info['service'], request.match_info['query']
@@ -322,7 +350,7 @@ class HTTPHandler:
             raise web.HTTPNotFound(text=f'No such service: {service}')
 
         stop = datetime.utcnow().date()
-        start = stop - timedelta(days=6)
+        start = stop - timedelta(days=30 - 1)
 
         parameter = request.query.get('parameter', None)
 
@@ -354,9 +382,10 @@ def main():
     app = web.Application()
     aiohttp_jinja2.setup(app, loader=jinja2.FileSystemLoader('templates'))
     handler = HTTPHandler(balcone)
-    app.router.add_get('/', handler.home, name='home')
-    app.router.add_get('/{service}', handler.service, name='service')
-    app.router.add_get('/{service}/{query}', handler.query, name='query')
+    app.router.add_get('/', handler.root, name='root')
+    app.router.add_get('/services', handler.services, name='services')
+    app.router.add_get('/services/{service}', handler.service, name='service')
+    app.router.add_get('/services/{service}/{query}', handler.query, name='query')
     web.run_app(app, host='127.0.0.1', port=8080)
 
     try:

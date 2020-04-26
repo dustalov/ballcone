@@ -1,10 +1,9 @@
 {% extends "layout.html" %}
 {% block content %}
 <div class="content">
-    <h2 class="subtitle"><a href="{{ url('home') }}">Service</a>: {{ service }}</h2>
-    <h3>Overview</h3>
-    <div class="columns">
-        <div class="column">
+    <h2 class="subtitle">Overview</h2>
+    <div class="columns is-desktop">
+        <div class="column is-one-half">
             <table class="table">
                 <thead>
                 <tr>
@@ -24,40 +23,35 @@
                 </tbody>
             </table>
         </div>
-        <div class="column">
-            <canvas id="chart" style="height: 20em; width: 100%; display: block;"></canvas>
+        <div class="column is-one-half">
+            <canvas id="visits" style="height: 20em; width: 100%; display: block;"></canvas>
         </div>
     </div>
-    <script>
-var chart = new Chart($('#chart'), {
-    type: 'bar',
-    data: {
-        datasets: [{
-            label: '# of Visits',
-            borderWidth: 1
-        }]
-    }
-});
-
-window.chart = chart;
-
-$(document).ready(function() {
-    $.getJSON('{{ url('query', service=service, query='visits') }}', function(data) {
-        console.log(data);
-
-        data.elements.forEach(function(entry) {
-            window.chart.data.labels.push(entry.date);
-
-            window.chart.data.datasets.forEach(function(dataset) {
-                dataset.data.push(entry.count);
-            });
-        });
-
-        window.chart.update();
-    });
-});
-    </script>
-    <h3>Paths</h3>
+    <h2 class="subtitle">Average Generation Time</h2>
+    <div class="columns is-desktop">
+        <div class="column is-one-half">
+            <table class="table">
+                <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Time</th>
+                </tr>
+                </thead>
+                <tbody>
+                {% for element in time.elements %}
+                <tr>
+                    <td>{{ element.date }}</td>
+                    <td>{{ element.avg | round(4) }}</td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <div class="column is-one-half">
+            <canvas id="time" style="height: 20em; width: 100%; display: block;"></canvas>
+        </div>
+    </div>
+    <h2 class="subtitle">Most Popular Paths</h2>
     <table class="table">
         <thead>
         <tr>
@@ -76,5 +70,48 @@ $(document).ready(function() {
         {% endfor %}
         </tbody>
     </table>
+    <h2 class="subtitle">Most Popular Browsers</h2>
+    <table class="table">
+        <thead>
+        <tr>
+            <th>Date</th>
+            <th>Browser</th>
+            <th>Visits</th>
+        </tr>
+        </thead>
+        <tbody>
+        {% for element in browsers.elements %}
+        <tr>
+            <td>{{ element.date }}</td>
+            <td>{{ element.group }}</td>
+            <td>{{ element.count }}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
 </div>
+<script>
+$(document).ready(function() {
+    $.getJSON('{{ url('query', service=current_service, query='visits') }}',
+    makeCallback(new Chart($('#visits'), {
+        type: 'bar',
+        data: {
+            datasets: [{
+                label: '# of Visits',
+                borderWidth: 1
+            }]
+        }
+    }), 'count'));
+    $.getJSON('{{ url('query', service=current_service, query='time') }}',
+    makeCallback(new Chart($('#time'), {
+        type: 'line',
+        data: {
+            datasets: [{
+                label: 'Average Generation Time',
+                borderWidth: 1
+            }]
+        }
+    }), 'avg'));
+});
+</script>
 {% endblock %}

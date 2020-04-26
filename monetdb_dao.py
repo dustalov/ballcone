@@ -174,7 +174,8 @@ class MonetDAO:
 
         query = Query.from_(tables).select(tables.name). \
             join(schemas).on(schemas.id == tables.schema_id). \
-            where(schemas.name == self.schema)
+            where(schemas.name == self.schema). \
+            orderby(tables.name)
 
         logging.debug(query)
 

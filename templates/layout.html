@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Balcone</title>
+    <title>Balcone{% if current_service %}: {{ current_service }}{% endif %}</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.8.2/css/bulma.min.css"
           integrity="sha256-qS+snwBgqr+iFVpBB58C9UCxKFhyL03YHpZfdNUhSEw=" crossorigin="anonymous">
     <script src="https://cdn.jsdelivr.net/npm/jquery@3.5.0/dist/jquery.min.js"
@@ -13,12 +13,52 @@
 </head>
 <body>
 
-<section class="section">
-    <div class="container">
-        <h1 class="title">Balcone</h1>
-        {% block content %}{% endblock %}
+<div class="container">
+    <div class="columns">
+        <div class="column is-one-quarter">
+            <h1 class="title">Balcone</h1>
+            <aside class="menu">
+                <p class="menu-label">General</p>
+                <ul class="menu-list">
+                    <li><a {% if current_page == 'root' %}class="is-active" {% endif %}
+                        href="{{ url('root') }}">Dashboard</a></li>
+                </ul>
+                <p class="menu-label">Services</p>
+                <ul class="menu-list">
+                    {% for service in services %}
+                    <li><a {% if service == current_service %}class="is-active" {% endif %}
+                           href="{{ url('service', service=service) }}">{{ service }}</a></li>
+                    {% else %}
+                    <li>No services yet</li>
+                    {% endfor %}
+                </ul>
+            </aside>
+        </div>
+        <div class="column is-three-quarters">
+            <div class="container">
+                {% block content %}{% endblock %}
+            </div>
+        </div>
     </div>
-</section>
+</div>
+
+<script>
+var makeCallback = function(chart, measure) {
+    return function(data) {
+        console.log(data);
+
+        data.elements.forEach(function(entry) {
+            chart.data.labels.push(entry.date);
+
+            chart.data.datasets.forEach(function(dataset) {
+                dataset.data.push(entry[measure]);
+            });
+        });
+
+        chart.update();
+    }
+};
+</script>
 
 </body>
 </html>
