@@ -11,7 +11,7 @@ from typing import cast, Tuple, Union, Optional
 import httpagentparser
 import simplejson
 
-from balcone import Balcone, VALID_SERVICE
+from balcone import Balcone
 from monetdb_dao import Entry, smallint
 
 # nginx's output cannot be properly parsed by any parser I tried
@@ -52,7 +52,7 @@ class SyslogProtocol(asyncio.DatagramProtocol):
         else:
             service = content['service'].strip().lower()
 
-        if not VALID_SERVICE.match(service):
+        if not self.balcone.check_service(service, should_exist=False):
             logging.info(f'Malformed service field from {addr}: {message}')
             return
 

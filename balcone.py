@@ -59,8 +59,8 @@ class Balcone:
             if count:
                 logging.debug(f'Inserted {count} entries for service {service}')
 
-    def check_service(self, service: str) -> bool:
-        return VALID_SERVICE.match(service) is not None and self.dao.table_exists(service)
+    def check_service(self, service: str, should_exist: bool = False) -> bool:
+        return VALID_SERVICE.match(service) is not None and (not should_exist or self.dao.table_exists(service))
 
     def time(self, service: str, start: date, stop: date) -> AverageResult:
         return self.dao.select_average(service, 'generation_time', start, stop)
