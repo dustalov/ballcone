@@ -160,7 +160,7 @@ class MonetDAO:
         query = Query.from_(schemas).select(schemas.name). \
             where(schemas.name == self.schema)
 
-        logging.info(query)
+        logging.debug(query)
 
         result = self.db.execute(str(query))
 
@@ -169,7 +169,7 @@ class MonetDAO:
     def create_schema(self):
         query = f'CREATE SCHEMA {monet_identifier_escape(self.schema)};'
 
-        logging.info(query)
+        logging.debug(query)
 
         with self.cursor() as cursor:
             result = cursor.execute(query)
@@ -184,7 +184,7 @@ class MonetDAO:
             join(schemas).on(schemas.id == tables.schema_id). \
             where(schemas.name == self.schema)
 
-        logging.info(query)
+        logging.debug(query)
 
         result = self.db.execute(str(query))
 
@@ -198,7 +198,7 @@ class MonetDAO:
             join(schemas).on(schemas.id == tables.schema_id). \
             where((schemas.name == self.schema) & (tables.name == table))
 
-        logging.info(query)
+        logging.debug(query)
 
         result = self.db.execute(str(query))
 
@@ -211,7 +211,7 @@ class MonetDAO:
 
         query = Query.create_table(target).columns(*columns)
 
-        logging.info(query)
+        logging.debug(query)
 
         with self.cursor() as cursor:
             result = cursor.execute(str(query))
@@ -223,7 +223,7 @@ class MonetDAO:
 
         query = Query.into(target).insert(*entry.as_values())
 
-        logging.info(query)
+        logging.debug(query)
 
         if cursor:
             return cursor.execute(str(query), discard_previous=False)
@@ -256,7 +256,7 @@ class MonetDAO:
 
         query = self.apply_dates(query, target, start, stop)
 
-        logging.info(query)
+        logging.debug(query)
 
         with self.cursor() as cursor:
             cursor.execute(str(query))
@@ -285,7 +285,7 @@ class MonetDAO:
 
         query = self.apply_dates(query, target, start, stop)
 
-        logging.info(query)
+        logging.debug(query)
 
         with self.cursor() as cursor:
             cursor.execute(str(query))
@@ -316,7 +316,7 @@ class MonetDAO:
 
         query = self.apply_dates(query, target, start, stop)
 
-        logging.info(query)
+        logging.debug(query)
 
         with self.cursor() as cursor:
             cursor.execute(str(query))
@@ -357,7 +357,7 @@ class MonetDAO:
             query = Query.from_(window).select(window.date, window.group, window.count). \
                 where(window.row_number <= limit)
 
-        logging.info(query)
+        logging.debug(query)
 
         with self.cursor() as cursor:
             cursor.execute(str(query))
