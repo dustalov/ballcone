@@ -363,7 +363,9 @@ class MonetDAO:
                                                an.RowNumber(alias='row_number').over(query.date))
 
             query = Query.from_(window).select(window.date, window.group, window.count). \
-                where(window.row_number <= limit)
+                where(window.row_number <= limit).orderby(window.date). \
+                orderby(window.count, order=Order.asc if ascending else Order.desc). \
+                orderby(window.group)
 
         logging.debug(query)
 
