@@ -7,6 +7,7 @@ import logging
 import re
 import sys
 from collections import OrderedDict, deque
+from contextlib import suppress
 from datetime import date, datetime, timedelta
 from ipaddress import ip_address, IPv4Address, IPv6Address
 from typing import cast, Tuple, Union, Optional, Dict, Deque, Any
@@ -392,7 +393,7 @@ def main():
         for task in asyncio.Task.all_tasks():
             task.cancel()
 
-            with asyncio.suppress(asyncio.CancelledError):
+            with suppress(asyncio.CancelledError):
                 loop.run_until_complete(task)
 
         geoip.close()
