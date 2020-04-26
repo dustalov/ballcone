@@ -44,6 +44,7 @@ class Balcone:
         self.dao = dao
         self.geoip = geoip
         self.queue: Dict[str, Deque[Entry]] = {}
+        self.json_dumps = BalconeJSONEncoder().encode
 
     async def persist_timer(self):
         while await asyncio.sleep(self.DELAY, result=True):
@@ -271,16 +272,15 @@ class DebugProtocol(asyncio.Protocol):
         response = self.balcone.handle_command(service, command, parameter, start, stop)
 
         if response:
-            self.transport.write(str(response).encode('utf-8'))
+            self.transport.write(self.balcone.json_dumps(response).encode('utf-8'))
             self.transport.write(b'\n')
 
         self.transport.close()
 
 
 class HTTPHandler:
-    def __init__(self, balcone: Balcone, encoder: simplejson.JSONEncoder):
+    def __init__(self, balcone: Balcone):
         self.balcone = balcone
-        self.encoder = encoder
 
     @aiohttp_jinja2.template('home.html')
     async def home(self, request: web.Request):
@@ -328,7 +328,7 @@ class HTTPHandler:
 
         response = self.balcone.handle_command(service, command, parameter, start, stop)
 
-        return web.json_response(response, dumps=self.encoder.encode)
+        return web.json_response(response, dumps=self.balcone.json_dumps)
 
 
 def main():
@@ -353,7 +353,7 @@ def main():
 
     app = web.Application()
     aiohttp_jinja2.setup(app, loader=jinja2.FileSystemLoader('templates'))
-    handler = HTTPHandler(balcone, BalconeJSONEncoder())
+    handler = HTTPHandler(balcone)
     app.router.add_get('/', handler.home, name='home')
     app.router.add_get('/{service}', handler.service, name='service')
     app.router.add_get('/{service}/{query}', handler.query, name='query')
