@@ -360,6 +360,28 @@ class HTTPHandler:
 
         return web.json_response(response, dumps=self.balcone.json_dumps)
 
+    @aiohttp_jinja2.template('sql.html')
+    async def sql(self, request: web.Request):
+        services = self.balcone.dao.tables()
+
+        data = await request.post()
+        sql, result, error = data.get('sql', ''), [], ''
+
+        if sql:
+            try:
+                result = self.balcone.dao.run(sql)
+            except monetdblite.exceptions.DatabaseError as e:
+                error = str(e)
+
+        return {
+            'version': __version__,
+            'current_page': 'sql',
+            'services': services,
+            'sql': sql,
+            'result': result,
+            'error': error
+        }
+
 
 def main():
     dao = MonetDAO(monetdblite.make_connection('monetdb'), 'balcone')
@@ -388,6 +410,8 @@ def main():
     app.router.add_get('/services', handler.services, name='services')
     app.router.add_get('/services/{service}', handler.service, name='service')
     app.router.add_get('/services/{service}/{query}', handler.query, name='query')
+    app.router.add_get('/sql', handler.sql, name='sql')
+    app.router.add_post('/sql', handler.sql, name='sql')
     web.run_app(app, host='127.0.0.1', port=8080)
 
     try:

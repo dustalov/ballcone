@@ -16,28 +16,32 @@
 <div class="container">
     <div class="columns">
         <div class="column is-one-quarter">
-            <h1 class="title">Balcone</h1>
-            <aside class="menu">
-                <p class="menu-label">General</p>
-                <ul class="menu-list">
-                    <li><a {% if current_page == 'root' %}class="is-active" {% endif %}
-                        href="{{ url('root') }}">Dashboard</a></li>
-                </ul>
-                <p class="menu-label">Services</p>
-                <ul class="menu-list">
-                    {% for service in services %}
-                    <li><a {% if service == current_service %}class="is-active" {% endif %}
-                           href="{{ url('service', service=service) }}">{{ service }}</a></li>
-                    {% else %}
-                    <li>No services yet</li>
-                    {% endfor %}
-                </ul>
-            </aside>
+            <section class="section">
+                <h1 class="title">Balcone</h1>
+                <aside class="menu">
+                    <p class="menu-label">General</p>
+                    <ul class="menu-list">
+                        <li><a {% if current_page == 'root' %}class="is-active" {% endif %}
+                            href="{{ url('root') }}">Dashboard</a></li>
+                        <li><a {% if current_page == 'sql' %}class="is-active" {% endif %}
+                            href="{{ url('sql') }}">SQL Console</a></li>
+                    </ul>
+                    <p class="menu-label">Services</p>
+                    <ul class="menu-list">
+                        {% for service in services %}
+                        <li><a {% if service == current_service %}class="is-active" {% endif %}
+                               href="{{ url('service', service=service) }}">{{ service }}</a></li>
+                        {% else %}
+                        <li>No services yet</li>
+                        {% endfor %}
+                    </ul>
+                </aside>
+            </section>
         </div>
         <div class="column is-three-quarters">
-            <div class="container">
+            <section class="section">
                 {% block content %}{% endblock %}
-            </div>
+            </section>
         </div>
     </div>
 </div>

@@ -384,6 +384,11 @@ class MonetDAO:
 
             return result
 
+    def run(self, query: str) -> List[List]:
+        with self.cursor() as cursor:
+            cursor.execute(query)
+            return cursor.fetchall()
+
     @staticmethod
     def apply_dates(query: Query, target: Table, start: Optional[date] = None, stop: Optional[date] = None) -> Query:
         if start and stop:
