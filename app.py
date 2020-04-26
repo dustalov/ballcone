@@ -56,7 +56,7 @@ def main():
     try:
         loop.run_forever()
     finally:
-        for task in asyncio.Task.all_tasks():
+        for task in asyncio.all_tasks():
             task.cancel()
 
             with suppress(asyncio.CancelledError):
