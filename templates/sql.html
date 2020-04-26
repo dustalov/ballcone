@@ -1,0 +1,49 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="content">
+    <h2 class="subtitle">SQL Console</h2>
+    <div class="content">
+        <form method="POST" action="{{ url('sql') }}" enctype="application/x-www-form-urlencoded">
+            <div class="field">
+                <label class="label">Query</label>
+                <div class="control">
+                    <textarea name="sql" class="textarea is-family-monospace" placeholder="SQL Query">{{ sql }}</textarea>
+                </div>
+            </div>
+            <div class="field is-grouped">
+                <div class="control">
+                    <button class="button is-link is-light">Submit</button>
+                </div>
+            </div>
+        </form>
+    </div>
+    {% if result or error %}
+    <div class="card">
+        <div class="card-content">
+            {% if result %}
+            <div class="content">
+                <div class="table-container">
+                    <table class="table">
+                        <tbody>
+                        {% for row in result %}
+                        <tr>
+                            {% for column in row %}
+                            <td>{{ column }}</td>
+                            {% endfor %}
+                        </tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            {% endif %}
+            {% if error %}
+            <div class="content">
+                <pre>{{ error }}</pre>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
