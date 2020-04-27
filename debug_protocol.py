@@ -2,13 +2,11 @@ __author__ = 'Dmitry Ustalov'
 
 import asyncio
 import logging
-import re
-from datetime import datetime, timedelta
 from typing import cast
 
-from balcone import Balcone
+import monetdblite
 
-DEBUG_FORMAT = re.compile(r'\A(?P<command>[^\s]+?) (?P<service>[^\s]+?)(| (?P<parameter>[^\s]+))\n\Z')
+from balcone import Balcone
 
 
 class DebugProtocol(asyncio.Protocol):
@@ -21,36 +19,34 @@ class DebugProtocol(asyncio.Protocol):
 
     def data_received(self, data: bytes):
         try:
-            message = data.decode('ascii')
+            sql = data.decode('utf-8')
         except UnicodeDecodeError:
             logging.info('Malformed ASCII received')
             self.transport.close()
             return
 
-        if not message:
+        if not sql:
             self.transport.close()
             return
 
-        match = DEBUG_FORMAT.match(message)
+        result, error = [], ''
 
-        if not match:
-            return
+        if sql:
+            try:
+                result = self.balcone.dao.run(sql)
+            except monetdblite.exceptions.DatabaseError as e:
+                error = str(e)
 
-        command, service, parameter = match.group('command'), match.group('service'), match.group('parameter')
+        if error:
+            self.transport.write(error.encode('utf-8'))
+        else:
+            for row in result:
+                for i, column in enumerate(row):
+                    self.transport.write(str(column).encode('utf-8'))
 
-        logging.debug(f'Received command={command} service={service} parameter={parameter}')
+                    if i < len(row) - 1:
+                        self.transport.write(b'|')
 
-        if not service or not self.balcone.check_service(service) or not command:
-            self.transport.close()
-            return
-
-        stop = datetime.utcnow().date()
-        start = stop - timedelta(days=7 - 1)
-
-        response = self.balcone.handle_command(service, command, parameter, start, stop)
-
-        if response:
-            self.transport.write(self.balcone.json_dumps(response).encode('utf-8'))
-            self.transport.write(b'\n')
+                self.transport.write(b'\n')
 
         self.transport.close()
