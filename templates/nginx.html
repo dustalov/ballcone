@@ -1,0 +1,59 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="content">
+    <h2 class="subtitle">nginx Configuration</h2>
+    <form method="GET" action="{{ url('nginx') }}">
+        <div class="field">
+            <label class="label" for="service">Service</label>
+            <div class="control">
+                <input name="service" id="service" class="input is-primary" type="text" placeholder="example"
+                       value="{{ service }}">
+            </div>
+        </div>
+        <div class="field">
+            <label class="label" for="balcone">Balcone IP</label>
+            <div class="control">
+                <input name="ip" id="ip" class="input is-secondary" type="text" placeholder="127.0.0.1"
+                       value="{{ ip }}">
+            </div>
+        </div>
+        <div class="field is-grouped">
+            <div class="control">
+                <button class="button is-link is-light">Submit</button>
+            </div>
+        </div>
+    </form>
+</div>
+{% if error %}
+<div class="notification is-danger is-light">
+    <ul>
+        {% for message in error %}
+        <li>{{ message }}</li>
+        {% endfor %}
+    </ul>
+</div>
+{% else %}
+<pre>
+log_format balcone_json_{{ service }} escape=json
+    '{'
+    '"service": "{{ service }}", '
+    '"args": "$args", '
+    '"body_bytes_sent": "$body_bytes_sent", '
+    '"content_length": "$content_length", '
+    '"content_type": "$content_type", '
+    '"host": "$host", '
+    '"http_referrer": "$http_referrer", '
+    '"http_user_agent": "$http_user_agent", '
+    '"http_x_forwarded_for": "$http_x_forwarded_for", '
+    '"remote_addr": "$remote_addr", '
+    '"request_method": "$request_method", '
+    '"request_time": "$request_time", '
+    '"status": "$status", '
+    '"upstream_addr": "$upstream_addr", '
+    '"uri": "$uri"'
+    '}';
+
+    access_log syslog:server={{ ip }}:65140 balcone_json_{{ service }};
+</pre>
+{% endif %}
+{% endblock %}

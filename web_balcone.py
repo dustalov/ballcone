@@ -2,13 +2,14 @@ __author__ = 'Dmitry Ustalov'
 
 from collections import OrderedDict
 from datetime import date, datetime, timedelta
+from ipaddress import ip_address
 from typing import Dict
 
 import aiohttp_jinja2
 import monetdblite
 from aiohttp import web
 
-from balcone import __version__, Balcone
+from balcone import __version__, Balcone, VALID_SERVICE
 
 
 class WebBalcone:
@@ -19,7 +20,7 @@ class WebBalcone:
     async def root(self, _: web.Request):
         today = datetime.utcnow().date()
 
-        services = {}
+        services = OrderedDict()
 
         for service in self.balcone.dao.tables():
             count = self.balcone.visits(service, today, today)
@@ -38,7 +39,7 @@ class WebBalcone:
     @aiohttp_jinja2.template('service.html')
     async def service(self, request: web.Request):
         services = self.balcone.dao.tables()
-        service = request.match_info.get('service')
+        service = request.match_info.get('service', None)
 
         if not self.balcone.check_service(service):
             raise web.HTTPNotFound(text=f'No such service: {service}')
@@ -112,5 +113,42 @@ class WebBalcone:
             'services': services,
             'sql': sql,
             'result': result,
+            'error': error
+        }
+
+    @aiohttp_jinja2.template('nginx.html')
+    async def nginx(self, request: web.Request):
+        services = self.balcone.dao.tables()
+
+        print(request.query)
+
+        service = request.query.get('service')
+
+        if not service:
+            service = 'example'
+
+        ip = request.query.get('ip')
+
+        if not ip:
+            ip = '127.0.0.1'
+
+        error = []
+
+        if not self.balcone.check_service(service, should_exist=False):
+            error.append(f'Invalid service name: {self.balcone.json_dumps(service)}, '
+                         f'must match /{VALID_SERVICE.pattern}/')
+
+        try:
+            ip_address(ip)
+        except ValueError:
+            error.append(f'Invalid Balcone IP address: {self.balcone.json_dumps(ip)}')
+
+        return {
+            'version': __version__,
+            'current_page': 'nginx',
+            'title': 'nginx Configuration',
+            'services': services,
+            'service': service,
+            'ip': ip,
             'error': error
         }

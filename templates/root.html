@@ -1,9 +1,9 @@
 {% extends "layout.html" %}
 {% block content %}
-{% for column in services.items() | batch(3) %}
+{% for column in services.items() | batch(2) %}
 <div class="columns">
     {% for service, visits in column %}
-    <div class="column is-one-third">
+    <div class="column is-one-half">
         <div class="card">
             <div class="card-content">
                 <p class="title"><a href="{{ url('service', service=service) }}">{{ service }}</a></p>
@@ -39,4 +39,7 @@ $(document).ready(function() {
     {% endfor %}
 </div>
 {% endfor %}
+<div class="content">
+    <p>Not seeing anything? Configure your nginx to <a href="{{ url('nginx') }}">get started</a>.</p>
+</div>
 {% endblock %}

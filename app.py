@@ -51,6 +51,7 @@ def main():
     app.router.add_get('/services/{service}/{query}', handler.query, name='query')
     app.router.add_get('/sql', handler.sql, name='sql')
     app.router.add_post('/sql', handler.sql, name='sql')
+    app.router.add_get('/nginx', handler.nginx, name='nginx')
     web.run_app(app, host='127.0.0.1', port=8080)
 
     try:

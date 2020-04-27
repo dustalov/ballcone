@@ -35,6 +35,11 @@
                         <li>No services yet</li>
                         {% endfor %}
                     </ul>
+                    <p class="menu-label">Configuration Templates</p>
+                    <ul class="menu-list">
+                        <li><a {% if current_page == 'nginx' %}class="is-active" {% endif %}
+                            href="{{ url('nginx') }}">nginx</a></li>
+                    </ul>
                 </aside>
             </div>
         </div>

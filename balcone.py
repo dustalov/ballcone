@@ -13,7 +13,7 @@ from geolite2 import maxminddb
 
 from monetdb_dao import MonetDAO, Entry, AverageResult, CountResult
 
-VALID_SERVICE = re.compile(r'\A[\S]+\Z')
+VALID_SERVICE = re.compile(r'\A[\w]+\Z')
 
 
 def isint(s: Optional[str]) -> bool:
