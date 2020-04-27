@@ -96,7 +96,7 @@ class WebBalcone:
     @aiohttp_jinja2.template('sql.html')
     async def sql(self, request: web.Request):
         data = await request.post()
-        sql, result, error = str(data.get('sql', '')), [], ''
+        sql, result, error = str(data.get('sql', 'SELECT 1, 2, 3;')), [], ''
 
         if sql:
             try:

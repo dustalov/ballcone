@@ -1,46 +1,44 @@
 {% extends "layout.html" %}
 {% block content %}
 <div class="content">
-    <div class="content">
-        <h2 class="subtitle">SQL Console</h2>
-        <form method="POST" action="{{ url('sql') }}" enctype="application/x-www-form-urlencoded">
-            <div class="field">
-                <label class="label" for="sql">Query</label>
-                <div class="control">
+    <h2 class="subtitle">SQL Console</h2>
+    <form method="POST" action="{{ url('sql') }}" enctype="application/x-www-form-urlencoded">
+        <div class="field">
+            <label class="label" for="sql">Query</label>
+            <div class="control">
                     <textarea id="sql" name="sql" class="textarea is-family-monospace"
                               placeholder="SQL Query">{{ sql }}</textarea>
-                </div>
             </div>
-            <div class="field is-grouped">
-                <div class="control">
-                    <button class="button is-link is-light">Submit</button>
-                </div>
-            </div>
-        </form>
-    </div>
-    {% if result %}
-    <div class="content">
-        <h2 class="subtitle">Result</h2>
-        <div class="table-container">
-            <table class="table is-bordered is-striped is-hoverable is-fullwidth">
-                <tbody>
-                {% for row in result %}
-                <tr>
-                    {% for column in row %}
-                    <td>{{ column }}</td>
-                    {% endfor %}
-                </tr>
-                {% endfor %}
-                </tbody>
-            </table>
         </div>
-    </div>
-    {% endif %}
-    {% if error %}
-    <div class="content">
-        <h2 class="subtitle">Error</h2>
-        <pre>{{ error }}</pre>
-    </div>
-    {% endif %}
+        <div class="field is-grouped">
+            <div class="control">
+                <button class="button is-link is-light">Submit</button>
+            </div>
+        </div>
+    </form>
 </div>
+{% if result %}
+<div class="content">
+    <h2 class="subtitle">Result</h2>
+    <div class="table-container">
+        <table class="table is-bordered is-striped is-hoverable is-fullwidth">
+            <tbody>
+            {% for row in result %}
+            <tr>
+                {% for column in row %}
+                <td>{{ column }}</td>
+                {% endfor %}
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+{% if error %}
+<div class="content">
+    <h2 class="subtitle">Error</h2>
+    <pre>{{ error }}</pre>
+</div>
+{% endif %}
 {% endblock %}
