@@ -6,14 +6,14 @@
         <div class="field">
             <label class="label" for="service">Service</label>
             <div class="control">
-                <input name="service" id="service" class="input is-primary" type="text" placeholder="example"
+                <input name="service" id="service" class="input" type="text" placeholder="example"
                        value="{{ service }}">
             </div>
         </div>
         <div class="field">
-            <label class="label" for="balcone">Balcone IP</label>
+            <label class="label" for="ip">Balcone IP</label>
             <div class="control">
-                <input name="ip" id="ip" class="input is-secondary" type="text" placeholder="127.0.0.1"
+                <input name="ip" id="ip" class="input" type="text" placeholder="127.0.0.1"
                        value="{{ ip }}">
             </div>
         </div>
@@ -33,7 +33,10 @@
     </ul>
 </div>
 {% else %}
-<textarea id="configuration" class="textarea is-family-monospace" rows="21" readonly>
+<div class="field">
+    <label class="label" for="configuration">Snippet for <code>nginx.conf</code></label>
+    <div class="control">
+        <textarea id="configuration" class="textarea is-family-monospace" rows="21" readonly>
 log_format balcone_json_{{ service }} escape=json
     '{'
     '"service": "{{ service }}", '
@@ -53,9 +56,14 @@ log_format balcone_json_{{ service }} escape=json
     '"uri": "$uri"'
     '}';
 
-    access_log syslog:server={{ ip }}:65140 balcone_json_{{ service }};
-</textarea>
-<a id="copy" class="button is-success is-light">Copy</a>
+    access_log syslog:server={{ ip }}:65140 balcone_json_{{ service }};</textarea>
+    </div>
+</div>
+<div class="field is-grouped">
+    <div class="control">
+        <a id="copy" class="button is-success is-light">Copy</a>
+    </div>
+</div>
 <script>
 $('#copy').click(function(e) {
     var configuration = $('#configuration');
