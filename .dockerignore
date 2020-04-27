@@ -3,4 +3,5 @@
 .mypy_cache
 __pycache__
 monetdb
+venv
 *.swp
