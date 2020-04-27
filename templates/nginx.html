@@ -33,7 +33,7 @@
     </ul>
 </div>
 {% else %}
-<pre>
+<textarea id="configuration" class="textarea is-family-monospace" rows="21" readonly>
 log_format balcone_json_{{ service }} escape=json
     '{'
     '"service": "{{ service }}", '
@@ -54,6 +54,14 @@ log_format balcone_json_{{ service }} escape=json
     '}';
 
     access_log syslog:server={{ ip }}:65140 balcone_json_{{ service }};
-</pre>
+</textarea>
+<a id="copy" class="button is-success is-light">Copy</a>
+<script>
+$('#copy').click(function(e) {
+    var configuration = $('#configuration');
+    configuration.select();
+    document.execCommand('copy');
+});
+</script>
 {% endif %}
 {% endblock %}
