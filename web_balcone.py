@@ -63,9 +63,9 @@ class WebBalcone:
 
         time = self.balcone.time(service, start, stop)
 
-        paths = self.balcone.uri(service, start, stop, limit=Balcone.N)
+        paths = self.balcone.uri(service, start, stop, limit=self.balcone.top_limit)
 
-        browsers = self.balcone.browser(service, start, stop, limit=Balcone.N)
+        browsers = self.balcone.browser(service, start, stop, limit=self.balcone.top_limit)
 
         return {
             'version': __version__,

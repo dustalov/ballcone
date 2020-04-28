@@ -39,17 +39,17 @@ class BalconeJSONEncoder(simplejson.JSONEncoder):
 
 
 class Balcone:
-    N = 5
-    DELAY = 5
-
-    def __init__(self, dao: MonetDAO, geoip: maxminddb.reader.Reader):
+    def __init__(self, dao: MonetDAO, geoip: maxminddb.reader.Reader,
+                 top_limit: int = 5, persist_period: int = 5):
         self.dao = dao
         self.geoip = geoip
+        self.top_limit = top_limit
+        self.persist_period = persist_period
         self.queue: Dict[str, Deque[Entry]] = {}
         self.json_dumps = BalconeJSONEncoder().encode
 
     async def persist_timer(self):
-        while await asyncio.sleep(self.DELAY, result=True):
+        while await asyncio.sleep(self.persist_period, result=True):
             self.persist()
 
     def persist(self):
@@ -58,6 +58,9 @@ class Balcone:
 
             if count:
                 logging.debug(f'Inserted {count} entries for service {service}')
+
+    def unwrap_top_limit(self, top_limit: Optional[int]) -> int:
+        return top_limit if top_limit else self.top_limit
 
     def check_service(self, service: str, should_exist: bool = False) -> bool:
         return VALID_SERVICE.match(service) is not None and (not should_exist or self.dao.table_exists(service))
@@ -108,23 +111,23 @@ class Balcone:
             return self.bytes(service, start, stop)
 
         if command == 'os':
-            n = self.unwrap_n(int(cast(int, parameter)) if isint(parameter) else None)
+            n = self.unwrap_top_limit(int(cast(int, parameter)) if isint(parameter) else None)
             return self.os(service, start, stop, limit=n)
 
         if command == 'browser':
-            n = self.unwrap_n(int(cast(int, parameter)) if isint(parameter) else None)
+            n = self.unwrap_top_limit(int(cast(int, parameter)) if isint(parameter) else None)
             return self.browser(service, start, stop, limit=n)
 
         if command == 'uri':
-            n = self.unwrap_n(int(cast(int, parameter)) if isint(parameter) else None)
+            n = self.unwrap_top_limit(int(cast(int, parameter)) if isint(parameter) else None)
             return self.uri(service, start, stop, limit=n)
 
         if command == 'ip':
-            n = self.unwrap_n(int(cast(int, parameter)) if isint(parameter) else None)
+            n = self.unwrap_top_limit(int(cast(int, parameter)) if isint(parameter) else None)
             return self.ip(service, start, stop, limit=n)
 
         if command == 'country':
-            n = self.unwrap_n(int(cast(int, parameter)) if isint(parameter) else None)
+            n = self.unwrap_top_limit(int(cast(int, parameter)) if isint(parameter) else None)
             return self.country(service, start, stop, limit=n)
 
         if command == 'visits':
@@ -134,10 +137,6 @@ class Balcone:
             return self.unique(service, start, stop)
 
         return None
-
-    @staticmethod
-    def unwrap_n(n: Optional[int]) -> int:
-        return n if n else Balcone.N
 
     @staticmethod
     def iso_code(geoip: maxminddb.reader.Reader, ip: str) -> str:
