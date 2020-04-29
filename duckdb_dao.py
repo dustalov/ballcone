@@ -8,6 +8,7 @@ from typing import Generator, NamedTuple, Optional, List, Sequence, Union, Any, 
 
 import duckdb
 from pypika import Query, Column, Field, Table, Order, functions as fn, analytics as an
+from pypika.queries import QueryBuilder
 
 smallint = NewType('smallint', int)
 
@@ -136,32 +137,19 @@ class AverageResult(NamedTuple):
 class DuckDAO:
     def __init__(self, db: duckdb.DuckDBPyConnection):
         self.db = db
+        self.master = Table('sqlite_master')
 
     def tables(self) -> Sequence[str]:
-        master = Table('sqlite_master')
-        query = Query.from_('sqlite_master').select(master.name). \
-            where(master.type == 'table').distinct()
+        query = Query.from_(self.master).select(self.master.name). \
+            where(self.master.type == 'table').distinct()
 
-        logging.debug(query)
-
-        self.db.execute(str(query))
-
-        result = self.db.fetchall()
-
-        return [table for table, *_ in result]
+        return [table for table, *_ in self.run(query)]
 
     def table_exists(self, table: str) -> bool:
-        master = Table('sqlite_master')
-        query = Query.from_('sqlite_master').select(master.name). \
-            where((master.type == 'table') & (master.name == table))
+        query = Query.from_(self.master).select(self.master.name). \
+            where((self.master.type == 'table') & (self.master.name == table))
 
-        logging.debug(query)
-
-        self.db.execute(str(query))
-
-        result = self.db.fetchall()
-
-        return len(result) > 0
+        return len(self.run(query)) > 0
 
     def create_table(self, table: str):
         target = Table(table)
@@ -169,41 +157,35 @@ class DuckDAO:
         columns = [Column(name, python_type_to_sql(annotation)) for name, annotation in Entry.__annotations__.items()]
 
         query = Query.create_table(target).columns(*columns)
+        sql = str(query)
 
-        logging.debug(query)
+        logging.debug(sql)
 
-        with self.cursor() as cursor:
-            result = cursor.execute(str(query))
-            cursor.commit()
-            return result
+        with self.transaction() as cursor:
+            return cursor.execute(sql)
 
     def insert_into(self, table: str, entry: Entry, cursor: Optional[duckdb.DuckDBPyConnection] = None):
         target = Table(table)
 
         query = Query.into(target).insert(*entry.as_values())
+        sql = str(query)
 
-        logging.debug(query)
+        logging.debug(sql)
 
         if cursor:
-            return cursor.execute(str(query))
+            cursor.execute(sql)
         else:
-            with self.cursor() as cursor:
-                result = cursor.execute(str(query))
-
-                cursor.commit()
+            with self.transaction() as cursor:
+                cursor.execute(sql)
 
     def batch_insert_into(self, table: str, entries: Sequence[Entry]) -> int:
         count = 0
 
         if entries:
-            with self.cursor() as cursor:
-                cursor.begin()
-
+            with self.transaction() as cursor:
                 for entry in entries:
                     self.insert_into(table, entry, cursor=cursor)
                     count += 1
-
-                cursor.commit()
 
         return count
 
@@ -211,15 +193,11 @@ class DuckDAO:
         count = 0
 
         if entries:
-            with self.cursor() as cursor:
-                cursor.begin()
-
+            with self.transaction() as cursor:
                 while entries:
                     entry = entries.popleft()
                     self.insert_into(table, entry, cursor=cursor)
                     count += 1
-
-                cursor.commit()
 
         return count
 
@@ -231,18 +209,12 @@ class DuckDAO:
 
         query = self.apply_dates(query, target, start, stop)
 
-        logging.debug(query)
+        rows = self.run(query)
 
-        with self.cursor() as cursor:
-            cursor.execute(str(query))
+        for i, current in enumerate(rows):
+            rows[i] = Entry.from_values(current)
 
-            # TODO: use fetchnumpy() or fetchdf()
-            results = cursor.fetchall()
-
-            for i, current in enumerate(results):
-                results[i] = Entry.from_values(current)
-
-            return results
+        return rows
 
     def select_average(self, table: str, field: str, start: date = None, stop: date = None) -> AverageResult:
         target = Table(table)
@@ -256,27 +228,19 @@ class DuckDAO:
 
         query = self.apply_dates(query, target, start, stop)
 
-        logging.debug(query)
+        result = AverageResult(table=table, field=field, elements=[])
 
-        with self.cursor() as cursor:
-            cursor.execute(str(query))
+        for current in self.run(query):
+            current_date = current[0]
 
-            result = AverageResult(table=table, field=field, elements=[])
+            result.elements.append(Average(
+                date=current_date,
+                avg=float(current[1]),
+                sum=float(current[2]) if current[3] else 0.,
+                count=int(current[3])
+            ))
 
-            # TODO: use fetchnumpy() or fetchdf()
-            rows = cursor.fetchall()
-
-            for current in rows:
-                current_date = current[0]
-
-                result.elements.append(Average(
-                    date=current_date,
-                    avg=float(current[1]),
-                    sum=float(current[2]) if current[3] else 0.,
-                    count=int(current[3])
-                ))
-
-            return result
+        return result
 
     def select_count(self, table: str, field: Optional[str] = None, start: Optional[date] = None,
                      stop: Optional[date] = None) -> CountResult:
@@ -290,29 +254,21 @@ class DuckDAO:
 
         query = self.apply_dates(query, target, start, stop)
 
-        logging.debug(query)
+        result = CountResult(table=table, field=field, distinct=field is not None, group=None, ascending=None,
+                             elements=[])
 
-        with self.cursor() as cursor:
-            cursor.execute(str(query))
+        for current in self.run(query):
+            result.elements.append(Count(
+                date=current[0],
+                group=None,
+                count=int(current[1])
+            ))
 
-            result = CountResult(table=table, field=field, distinct=field is not None, group=None, ascending=None,
-                                 elements=[])
-
-            # TODO: use fetchnumpy() or fetchdf()
-            rows = cursor.fetchall()
-
-            for current in rows:
-                result.elements.append(Count(
-                    date=current[0],
-                    group=None,
-                    count=int(current[1])
-                ))
-
-            return result
+        return result
 
     def select_count_group(self, table: str, field: Optional[str], group: str, distinct: bool = False,
                            start: Optional[date] = None, stop: Optional[date] = None,
-                           ascending: bool = True, limit: Optional[int] = None):
+                           ascending: bool = True, limit: Optional[int] = None) -> CountResult:
         target = Table(table)
         count_field = fn.Count(Field(field, table=target) if field else target.date, alias='count')
 
@@ -337,33 +293,31 @@ class DuckDAO:
                 orderby(window.count, order=Order.asc if ascending else Order.desc). \
                 orderby(window.group)
 
-        logging.debug(query)
+        result = CountResult(table=table, field=field, distinct=distinct, group=group, ascending=ascending,
+                             elements=[])
+
+        for current in self.run(query):
+            result.elements.append(Count(
+                date=current[0],
+                group=current[1],
+                count=int(current[2])
+            ))
+
+        return result
+
+    def run(self, query: Union[QueryBuilder, str]) -> List:
+        sql = str(query) if isinstance(query, QueryBuilder) else query
+
+        logging.debug(sql)
 
         with self.cursor() as cursor:
-            cursor.execute(str(query))
+            cursor.execute(sql)
 
-            result = CountResult(table=table, field=field, distinct=distinct, group=group, ascending=ascending,
-                                 elements=[])
-
-            # TODO: use fetchnumpy() or fetchdf()
-            rows = cursor.fetchall()
-
-            for current in rows:
-                result.elements.append(Count(
-                    date=current[0],
-                    group=current[1],
-                    count=int(current[2])
-                ))
-
-            return result
-
-    def run(self, query: str) -> List[List]:
-        with self.cursor() as cursor:
-            cursor.execute(query)
             return cursor.fetchall()
 
     @staticmethod
-    def apply_dates(query: Query, target: Table, start: Optional[date] = None, stop: Optional[date] = None) -> Query:
+    def apply_dates(query: QueryBuilder, target: Table,
+                    start: Optional[date] = None, stop: Optional[date] = None) -> QueryBuilder:
         if start and stop:
             if start == stop:
                 return query.where(target.date == Entry.as_value(start))
@@ -386,3 +340,10 @@ class DuckDAO:
             raise e
         finally:
             cursor.close()
+
+    @contextmanager
+    def transaction(self) -> Generator[duckdb.DuckDBPyConnection, None, None]:
+        with self.cursor() as cursor:
+            cursor.begin()
+            yield cursor
+            cursor.commit()
