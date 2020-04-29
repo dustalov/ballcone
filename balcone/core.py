@@ -1,5 +1,4 @@
 __author__ = 'Dmitry Ustalov'
-__version__ = 0
 
 import asyncio
 import logging
@@ -11,7 +10,7 @@ from typing import cast, Union, Optional, Dict, Deque, Any
 import simplejson
 from geolite2 import maxminddb
 
-from duckdb_dao import DuckDAO, Entry, AverageResult, CountResult
+from .duckdb_dao import DuckDAO, Entry, AverageResult, CountResult
 
 VALID_SERVICE = re.compile(r'\A[\w]+\Z')
 

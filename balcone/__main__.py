@@ -14,11 +14,12 @@ import jinja2
 from aiohttp import web
 from geolite2 import geolite2
 
-from balcone import Balcone, __version__
-from debug_protocol import DebugProtocol
-from duckdb_dao import DuckDAO
-from syslog_protocol import SyslogProtocol
-from web_balcone import WebBalcone
+from balcone import __version__
+from balcone.core import Balcone
+from balcone.debug_protocol import DebugProtocol
+from balcone.duckdb_dao import DuckDAO
+from balcone.syslog_protocol import SyslogProtocol
+from balcone.web_balcone import WebBalcone
 
 
 def main():

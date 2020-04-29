@@ -8,7 +8,8 @@ from typing import Dict
 import aiohttp_jinja2
 from aiohttp import web
 
-from balcone import __version__, Balcone, VALID_SERVICE
+from balcone import __version__
+from balcone.core import VALID_SERVICE, Balcone
 
 
 class WebBalcone:

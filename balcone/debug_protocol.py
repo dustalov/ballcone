@@ -4,9 +4,7 @@ import asyncio
 import logging
 from typing import cast
 
-import duckdb
-
-from balcone import Balcone
+from balcone.core import Balcone
 
 
 class DebugProtocol(asyncio.Protocol):
