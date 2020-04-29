@@ -14,6 +14,7 @@ apk add --no-cache --virtual .installdeps build-base python3-dev py3-numpy-dev g
 sed -re 's|^(monetdblite)==(.+)$|-e git+https://github.com/MonetDB/MonetDBLite-Python@v\2#egg=\1|' -i requirements.txt && \
 pip3 install pandas && \
 pip3 install -r requirements.txt && \
-apk del .installdeps
+apk del .installdeps && \
+python3 setup.py install
 
-CMD python3 balcone.py
+CMD balcone

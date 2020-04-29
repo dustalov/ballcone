@@ -2,6 +2,8 @@
 .idea
 .mypy_cache
 __pycache__
+db
 monetdb
+balcone.db*
 venv
 *.swp
