@@ -11,7 +11,7 @@ from typing import cast, Union, Optional, Dict, Deque, Any
 import simplejson
 from geolite2 import maxminddb
 
-from monetdb_dao import MonetDAO, Entry, AverageResult, CountResult
+from duckdb_dao import DuckDAO, Entry, AverageResult, CountResult
 
 VALID_SERVICE = re.compile(r'\A[\w]+\Z')
 
@@ -39,7 +39,7 @@ class BalconeJSONEncoder(simplejson.JSONEncoder):
 
 
 class Balcone:
-    def __init__(self, dao: MonetDAO, geoip: maxminddb.reader.Reader,
+    def __init__(self, dao: DuckDAO, geoip: maxminddb.reader.Reader,
                  top_limit: int = 5, persist_period: int = 5):
         self.dao = dao
         self.geoip = geoip

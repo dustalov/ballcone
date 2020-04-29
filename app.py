@@ -9,14 +9,14 @@ import sys
 from contextlib import suppress
 
 import aiohttp_jinja2
+import duckdb
 import jinja2
-import monetdblite
 from aiohttp import web
 from geolite2 import geolite2
 
 from balcone import Balcone, __version__
 from debug_protocol import DebugProtocol
-from monetdb_dao import MonetDAO
+from duckdb_dao import DuckDAO
 from syslog_protocol import SyslogProtocol
 from web_balcone import WebBalcone
 
@@ -36,10 +36,9 @@ def main():
 
     logging.basicConfig(format='%(asctime)s %(message)s', level=logging.DEBUG)
 
-    dao = MonetDAO(monetdblite.make_connection('monetdb'), 'balcone')
+    connection = duckdb.connect('balcone.db')
 
-    if not dao.schema_exists():
-        dao.create_schema()
+    dao = DuckDAO(connection)
 
     geoip = geolite2.reader()
 
@@ -85,7 +84,7 @@ def main():
         try:
             balcone.persist()
         finally:
-            dao.close()
+            connection.close()
 
 
 if __name__ == '__main__':

@@ -6,7 +6,6 @@ from ipaddress import ip_address
 from typing import Dict
 
 import aiohttp_jinja2
-import monetdblite
 from aiohttp import web
 
 from balcone import __version__, Balcone, VALID_SERVICE
@@ -101,7 +100,7 @@ class WebBalcone:
         if sql:
             try:
                 result = self.balcone.dao.run(sql)
-            except monetdblite.exceptions.DatabaseError as e:
+            except RuntimeError as e:
                 error = str(e)
 
         services = self.balcone.dao.tables()

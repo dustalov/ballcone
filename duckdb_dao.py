@@ -1,28 +1,26 @@
 __author__ = 'Dmitry Ustalov'
 
 import logging
-from calendar import timegm
 from contextlib import contextmanager
 from datetime import datetime, date
 from ipaddress import ip_address, IPv4Address, IPv6Address
 from typing import Generator, NamedTuple, Optional, List, Sequence, Union, Any, NewType, Tuple, Deque, Set, cast
 
-import monetdblite
-from monetdblite.monetize import monet_identifier_escape
+import duckdb
 from pypika import Query, Column, Field, Table, Order, functions as fn, analytics as an
 
 smallint = NewType('smallint', int)
 
 TYPES = {
-    datetime: 'BIGINT',
-    date: 'INT',
-    str: 'TEXT',
-    smallint: 'SMALLINT',
-    int: 'INT',
-    float: 'DOUBLE',
-    IPv4Address: 'TEXT',
-    IPv6Address: 'TEXT',
-    bool: 'BOOL'
+    datetime: 'timestamp',
+    date: 'date',
+    str: 'varchar',
+    smallint: 'smallint',
+    int: 'integer',
+    float: 'double',
+    IPv4Address: 'varchar',
+    IPv6Address: 'varchar',
+    bool: 'boolean'
 }
 
 
@@ -53,11 +51,8 @@ def sql_value_to_python(name: str, annotation: Any, value: Any) -> Any:
     args, null = optional_types(annotation)
     first_type = next(iter(args))
 
-    if first_type == datetime:
-        return datetime.utcfromtimestamp(value)
-
-    if first_type == date:
-        return date.fromordinal(value)
+    if isinstance(value, (datetime, date)):
+        return value
 
     if first_type == smallint:
         return int(value)
@@ -96,10 +91,10 @@ class Entry(NamedTuple):
     @staticmethod
     def as_value(value: Any) -> Any:
         if isinstance(value, datetime):
-            return timegm(cast(datetime, value).utctimetuple())
+            return cast(datetime, value).isoformat(' ')
 
         if isinstance(value, date):
-            return cast(date, value).toordinal()
+            return cast(date, value).isoformat()
 
         if isinstance(value, (IPv4Address, IPv6Address)):
             return str(value)
@@ -138,67 +133,38 @@ class AverageResult(NamedTuple):
     elements: List[Average]
 
 
-class MonetDAO:
-    def __init__(self, db: monetdblite.Connection, schema: str):
+class DuckDAO:
+    def __init__(self, db: duckdb.DuckDBPyConnection):
         self.db = db
-        self.schema = schema
-
-    def close(self):
-        self.db.close()
-
-    def schema_exists(self) -> bool:
-        schemas = Table('schemas', schema='sys')
-
-        query = Query.from_(schemas).select(schemas.name). \
-            where(schemas.name == self.schema)
-
-        logging.debug(query)
-
-        result = self.db.execute(str(query))
-
-        return result['name'].size > 0
-
-    def create_schema(self):
-        query = f'CREATE SCHEMA {monet_identifier_escape(self.schema)};'
-
-        logging.debug(query)
-
-        with self.cursor() as cursor:
-            result = cursor.execute(query)
-            cursor.commit()
-            return result
 
     def tables(self) -> Sequence[str]:
-        schemas = Table('schemas', schema='sys')
-        tables = Table('tables', schema='sys')
-
-        query = Query.from_(tables).select(tables.name). \
-            join(schemas).on(schemas.id == tables.schema_id). \
-            where(schemas.name == self.schema). \
-            orderby(tables.name)
+        master = Table('sqlite_master')
+        query = Query.from_('sqlite_master').select(master.name). \
+            where(master.type == 'table').distinct()
 
         logging.debug(query)
 
-        result = self.db.execute(str(query))
+        self.db.execute(str(query))
 
-        return result['name'].tolist()
+        result = self.db.fetchall()
+
+        return [table for table, *_ in result]
 
     def table_exists(self, table: str) -> bool:
-        schemas = Table('schemas', schema='sys')
-        tables = Table('tables', schema='sys')
-
-        query = Query.from_(tables).select(tables.name). \
-            join(schemas).on(schemas.id == tables.schema_id). \
-            where((schemas.name == self.schema) & (tables.name == table))
+        master = Table('sqlite_master')
+        query = Query.from_('sqlite_master').select(master.name). \
+            where((master.type == 'table') & (master.name == table))
 
         logging.debug(query)
 
-        result = self.db.execute(str(query))
+        self.db.execute(str(query))
 
-        return result['name'].size > 0
+        result = self.db.fetchall()
+
+        return len(result) > 0
 
     def create_table(self, table: str):
-        target = Table(table, schema=self.schema)
+        target = Table(table)
 
         columns = [Column(name, python_type_to_sql(annotation)) for name, annotation in Entry.__annotations__.items()]
 
@@ -211,28 +177,28 @@ class MonetDAO:
             cursor.commit()
             return result
 
-    def insert_into(self, table: str, entry: Entry, cursor: Optional[monetdblite.cursors.Cursor] = None) -> int:
-        target = Table(table, schema=self.schema)
+    def insert_into(self, table: str, entry: Entry, cursor: Optional[duckdb.DuckDBPyConnection] = None):
+        target = Table(table)
 
         query = Query.into(target).insert(*entry.as_values())
 
         logging.debug(query)
 
         if cursor:
-            return cursor.execute(str(query), discard_previous=False)
+            return cursor.execute(str(query))
         else:
             with self.cursor() as cursor:
                 result = cursor.execute(str(query))
 
                 cursor.commit()
 
-                return result
-
     def batch_insert_into(self, table: str, entries: Sequence[Entry]) -> int:
         count = 0
 
         if entries:
             with self.cursor() as cursor:
+                cursor.begin()
+
                 for entry in entries:
                     self.insert_into(table, entry, cursor=cursor)
                     count += 1
@@ -246,6 +212,8 @@ class MonetDAO:
 
         if entries:
             with self.cursor() as cursor:
+                cursor.begin()
+
                 while entries:
                     entry = entries.popleft()
                     self.insert_into(table, entry, cursor=cursor)
@@ -257,9 +225,9 @@ class MonetDAO:
 
     def select(self, table: str, start: Optional[date] = None, stop: Optional[date] = None,
                limit: Optional[int] = None) -> List[Entry]:
-        target = Table(table, schema=self.schema)
+        target = Table(table)
 
-        query = Query.from_(target).select('*').orderby(target.date).limit(limit)
+        query = Query.from_(target).select('*').orderby(target.datetime).limit(limit)
 
         query = self.apply_dates(query, target, start, stop)
 
@@ -268,20 +236,16 @@ class MonetDAO:
         with self.cursor() as cursor:
             cursor.execute(str(query))
 
-            results = []
+            # TODO: use fetchnumpy() or fetchdf()
+            results = cursor.fetchall()
 
-            while True:
-                current = cursor.fetchone()
-
-                if not current:
-                    break
-
-                results.append(Entry.from_values(current))
+            for i, current in enumerate(results):
+                results[i] = Entry.from_values(current)
 
             return results
 
     def select_average(self, table: str, field: str, start: date = None, stop: date = None) -> AverageResult:
-        target = Table(table, schema=self.schema)
+        target = Table(table)
         target_field = Field(field, table=target)
 
         query = Query.from_(target).select(target.date,
@@ -299,8 +263,11 @@ class MonetDAO:
 
             result = AverageResult(table=table, field=field, elements=[])
 
-            for current in cursor:
-                current_date = date.fromordinal(current[0])
+            # TODO: use fetchnumpy() or fetchdf()
+            rows = cursor.fetchall()
+
+            for current in rows:
+                current_date = current[0]
 
                 result.elements.append(Average(
                     date=current_date,
@@ -313,7 +280,7 @@ class MonetDAO:
 
     def select_count(self, table: str, field: Optional[str] = None, start: Optional[date] = None,
                      stop: Optional[date] = None) -> CountResult:
-        target = Table(table, schema=self.schema)
+        target = Table(table)
         count_field = fn.Count(Field(field, table=target) if field else target.date, alias='count')
 
         if field:
@@ -331,9 +298,12 @@ class MonetDAO:
             result = CountResult(table=table, field=field, distinct=field is not None, group=None, ascending=None,
                                  elements=[])
 
-            for current in cursor:
+            # TODO: use fetchnumpy() or fetchdf()
+            rows = cursor.fetchall()
+
+            for current in rows:
                 result.elements.append(Count(
-                    date=date.fromordinal(current[0]),
+                    date=current[0],
                     group=None,
                     count=int(current[1])
                 ))
@@ -343,7 +313,7 @@ class MonetDAO:
     def select_count_group(self, table: str, field: Optional[str], group: str, distinct: bool = False,
                            start: Optional[date] = None, stop: Optional[date] = None,
                            ascending: bool = True, limit: Optional[int] = None):
-        target = Table(table, schema=self.schema)
+        target = Table(table)
         count_field = fn.Count(Field(field, table=target) if field else target.date, alias='count')
 
         if distinct:
@@ -375,9 +345,12 @@ class MonetDAO:
             result = CountResult(table=table, field=field, distinct=distinct, group=group, ascending=ascending,
                                  elements=[])
 
-            for current in cursor:
+            # TODO: use fetchnumpy() or fetchdf()
+            rows = cursor.fetchall()
+
+            for current in rows:
                 result.elements.append(Count(
-                    date=date.fromordinal(current[0]),
+                    date=current[0],
                     group=current[1],
                     count=int(current[2])
                 ))
@@ -392,7 +365,10 @@ class MonetDAO:
     @staticmethod
     def apply_dates(query: Query, target: Table, start: Optional[date] = None, stop: Optional[date] = None) -> Query:
         if start and stop:
-            return query.where(target.date[Entry.as_value(start):Entry.as_value(stop)])
+            if start == stop:
+                return query.where(target.date == Entry.as_value(start))
+            else:
+                return query.where(target.date[Entry.as_value(start):Entry.as_value(stop)])
         elif start:
             return query.where(target.date >= Entry.as_value(start))
         elif stop:
@@ -401,13 +377,12 @@ class MonetDAO:
         return query
 
     @contextmanager
-    def cursor(self) -> Generator[monetdblite.cursors.Cursor, None, None]:
+    def cursor(self) -> Generator[duckdb.DuckDBPyConnection, None, None]:
         cursor = self.db.cursor()
 
         try:
             yield cursor
-        except monetdblite.exceptions.DatabaseError as e:
-            cursor.rollback()
+        except RuntimeError as e:
             raise e
         finally:
             cursor.close()
