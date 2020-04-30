@@ -25,6 +25,13 @@ TYPES = {
 }
 
 
+def is_empty(obj: Any) -> bool:
+    if hasattr(obj, '__len__'):
+        return not len(obj)
+
+    return obj is None
+
+
 def optional_types(annotation: Any) -> Tuple[Set[Any], bool]:
     if hasattr(annotation, '__args__'):
         types = set(annotation.__args__)
@@ -61,7 +68,7 @@ def sql_value_to_python(name: str, annotation: Any, value: Any) -> Any:
     if first_type in (IPv4Address, IPv6Address):
         return ip_address(value)
 
-    return None if not value and null else first_type(value)
+    return None if is_empty(value) and null else first_type(value)
 
 
 class Entry(NamedTuple):
@@ -90,7 +97,7 @@ class Entry(NamedTuple):
                        for (name, annotation), value in zip(Entry.__annotations__.items(), entry)))
 
     @staticmethod
-    def as_value(value: Any) -> Any:
+    def as_value(annotation: Any, value: Any) -> Any:
         if isinstance(value, datetime):
             return cast(datetime, value).isoformat(' ')
 
@@ -100,10 +107,13 @@ class Entry(NamedTuple):
         if isinstance(value, (IPv4Address, IPv6Address)):
             return str(value)
 
-        return value
+        _, null = optional_types(annotation)
+
+        return None if is_empty(value) and null else value
 
     def as_values(self) -> Tuple:
-        return tuple(self.as_value(getattr(self, name)) for name in self.__annotations__)
+        return tuple(self.as_value(annotation, getattr(self, name))
+                     for name, annotation in self.__annotations__.items())
 
 
 class Count(NamedTuple):
