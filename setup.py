@@ -1,4 +1,4 @@
-import os.path
+import os
 import re
 
 from setuptools import setup
@@ -28,6 +28,19 @@ with open('README.md', 'r', encoding='UTF-8') as f:
 with open('requirements.txt', 'r', encoding='UTF-8') as f:
     install_requires = f.read()
 
+
+def package_files(directory):
+    paths = []
+
+    for (path, _, filenames) in os.walk(directory):
+        for filename in filenames:
+            paths.append(os.path.join('..', path, filename))
+
+    return paths
+
+
+package_data = {'': package_files('balcone/templates')}
+
 setup(name='balcone',
       version=__version__,
       description='Balcone is a simple Web analytics solution.',
@@ -37,6 +50,7 @@ setup(name='balcone',
       author='Dmitry Ustalov',
       license=__license__,
       packages=['balcone'],
+      package_data=package_data,
       entry_points={'console_scripts': ['balcone = balcone.__main__:main']},
       classifiers=[
           'Development Status :: 3 - Alpha',

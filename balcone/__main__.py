@@ -58,7 +58,7 @@ def main():
     loop.run_until_complete(debug)
 
     app = web.Application()
-    aiohttp_jinja2.setup(app, loader=jinja2.FileSystemLoader('templates'))
+    aiohttp_jinja2.setup(app, loader=jinja2.PackageLoader('balcone'))
     handler = WebBalcone(balcone)
     app.router.add_get('/', handler.root, name='root')
     app.router.add_get('/services', handler.services, name='services')
