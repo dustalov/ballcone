@@ -97,7 +97,7 @@ class Entry(NamedTuple):
                        for (name, annotation), value in zip(Entry.__annotations__.items(), entry)))
 
     @staticmethod
-    def as_value(annotation: Any, value: Any) -> Any:
+    def as_value(value: Any, annotation: Any = None) -> Any:
         if isinstance(value, datetime):
             return cast(datetime, value).isoformat(' ')
 
@@ -107,12 +107,15 @@ class Entry(NamedTuple):
         if isinstance(value, (IPv4Address, IPv6Address)):
             return str(value)
 
-        _, null = optional_types(annotation)
+        if annotation:
+            _, null = optional_types(annotation)
 
-        return None if is_empty(value) and null else value
+            return None if is_empty(value) and null else value
+        else:
+            return value
 
     def as_values(self) -> Tuple:
-        return tuple(self.as_value(annotation, getattr(self, name))
+        return tuple(self.as_value(getattr(self, name), annotation)
                      for name, annotation in self.__annotations__.items())
 
 
