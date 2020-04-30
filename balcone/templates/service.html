@@ -24,7 +24,7 @@
             </table>
         </div>
         <div class="column is-one-half">
-            <canvas id="visits" style="height: 20em; width: 100%; display: block;"></canvas>
+            <canvas id="unique" style="height: 20em; width: 100%; display: block;"></canvas>
         </div>
     </div>
     <h2 class="subtitle">Average Generation Time</h2>
@@ -92,12 +92,12 @@
 </div>
 <script>
 $(document).ready(function() {
-    $.getJSON('{{ url('query', service=current_service, query='visits') }}',
-    makeCallback(new Chart($('#visits'), {
+    $.getJSON('{{ url('query', service=current_service, query='unique') }}',
+    makeCallback(new Chart($('#unique'), {
         type: 'bar',
         data: {
             datasets: [{
-                label: '# of Visits',
+                label: '# of Unique IPs',
                 borderWidth: 1
             }]
         }

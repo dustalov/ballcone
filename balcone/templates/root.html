@@ -8,7 +8,7 @@
             <div class="card-content">
                 <p class="title"><a href="{{ url('service', service=service) }}">{{ service }}</a></p>
                 <p class="subtitle">
-                    {{ visits }}
+                    {{ visits }} unique
                     {% if visits == 1 %}
                     visit
                     {% else %}
@@ -17,15 +17,15 @@
                     today
                 </p>
                 <div class="content">
-                    <canvas id="visits_{{ service }}" style="height: 16em; width: 100%; display: block;"></canvas>
+                    <canvas id="unique_{{ service }}" style="height: 16em; width: 100%; display: block;"></canvas>
                     <script>
 $(document).ready(function() {
-    $.getJSON('{{ url('query', service=service, query='visits') }}',
-    makeCallback(new Chart($('#visits_{{ service }}'), {
+    $.getJSON('{{ url('query', service=service, query='unique') }}',
+    makeCallback(new Chart($('#unique_{{ service }}'), {
         type: 'bar',
         data: {
             datasets: [{
-                label: '# of Visits',
+                label: '# of Unique IPs',
                 borderWidth: 1
             }]
         }
