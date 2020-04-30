@@ -3,5 +3,5 @@ maxminddb-geolite2==2018.703
 aiohttp==3.6.2
 aiohttp-jinja2==1.2.0
 duckdb==0.1.6
-PyPika==0.37.3
+PyPika==0.37.4
 simplejson==3.17.0
