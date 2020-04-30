@@ -79,7 +79,7 @@ class Entry(NamedTuple):
     path: str
     status: smallint
     length: int
-    generation_time: Optional[float]
+    generation_time: float
     referer: Optional[str]
     # IP address and derivatives
     ip: Union[IPv4Address, IPv6Address]
