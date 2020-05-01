@@ -17,11 +17,14 @@ Balcone is a fast and lightweight server-side Web analytics solution.
 * Almost zero-configuration needed (thanks to [syslog logger](https://nginx.org/en/docs/syslog.html) bundled in nginx &geq; 1.7.1)
 * Columnar data storage for lighting-fast analytic queries ([MonetDBLite](https://github.com/monetDB/MonetDBLite-Python) is currently used)
 
-## Alternatives
+## Demo
 
-* Web analytics solutions: [Matomo](https://matomo.org/), [Google Analytics](http://google.com/analytics/), [Yandex.Metrica](https://metrica.yandex.com/), etc.
-* Columnar data storages: [ClickHouse](https://clickhouse.tech/), [PostgreSQL cstore_fdw](https://github.com/citusdata/cstore_fdw), [MariaDB ColumnStore](https://mariadb.com/kb/en/mariadb-columnstore/), etc.
-* Log management: [Graylog](https://www.graylog.org/), [Fluentd](https://www.fluentd.org/), [Elasticsearch](https://github.com/elastic/elasticsearch), etc.
+This repository contains an example configuration of nginx and Balcone. First, build the `balcone` Docker image locally and run the container using Docker Compose. nginx will be available at <http://localhost:8888/> and Balcone will be available at <http://localhost:8080/>.
+
+```shell
+make docker # docker build --rm -t balcone .
+docker-compose up
+```
 
 ## Roadmap
 
@@ -51,6 +54,12 @@ log_format balcone_json_petrovich escape=json
 
     access_log syslog:server=127.0.0.1:65140 balcone_json_petrovich;
 ```
+
+## Alternatives
+
+* Web analytics solutions: [Matomo](https://matomo.org/), [Google Analytics](http://google.com/analytics/), [Yandex.Metrica](https://metrica.yandex.com/), etc.
+* Columnar data storages: [ClickHouse](https://clickhouse.tech/), [PostgreSQL cstore_fdw](https://github.com/citusdata/cstore_fdw), [MariaDB ColumnStore](https://mariadb.com/kb/en/mariadb-columnstore/), etc.
+* Log management: [Graylog](https://www.graylog.org/), [Fluentd](https://www.fluentd.org/), [Elasticsearch](https://github.com/elastic/elasticsearch), etc.
 
 ## Copyright
 
