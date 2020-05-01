@@ -10,7 +10,7 @@ Balcone is a fast and lightweight server-side Web analytics solution.
 ## Requirements
 
 * Python 3.6 or 3.7
-* [MonetDBLite](https://github.com/monetDB/MonetDBLite-Python)
+* [MonetDBLite](https://github.com/monetDB/MonetDBLite-Python), an embedded database
 
 ## Design Goals
 
