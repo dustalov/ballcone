@@ -2,7 +2,10 @@
 
 Balcone is a fast and lightweight server-side Web analytics solution.
 
-[![Unit Tests](https://github.com/dustalov/balcone/workflows/Unit%20Tests/badge.svg?branch=master)](https://github.com/dustalov/balcone/actions?query=workflow%3A%22Unit+Tests%22)
+[![Unit Tests on GitHub Actions][github_tests_badge]][github_tests_link]
+
+[github_tests_badge]: https://github.com/dustalov/balcone/workflows/Unit%20Tests/badge.svg?branch=master
+[github_tests_link]: https://github.com/dustalov/balcone/actions?query=workflow%3A%22Unit+Tests%22
 
 ## Requirements
 
