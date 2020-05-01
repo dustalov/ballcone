@@ -4,6 +4,8 @@ import asyncio
 import logging
 from typing import cast
 
+import monetdblite
+
 from balcone.core import Balcone
 
 
@@ -32,7 +34,7 @@ class DebugProtocol(asyncio.Protocol):
         if sql:
             try:
                 result = self.balcone.dao.run(sql)
-            except RuntimeError as e:
+            except monetdblite.exceptions.DatabaseError as e:
                 error = str(e)
 
         if error:
