@@ -13,4 +13,4 @@ pip3 install 'numpy>=1.14' 'pandas>=0.23' && \
 pip3 install -r requirements.txt && \
 python3 setup.py install
 
-CMD balcone
+CMD /usr/local/bin/balcone

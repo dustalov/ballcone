@@ -1,0 +1,17 @@
+FROM balcone
+
+MAINTAINER Dmitry Ustalov <dmitry.ustalov@gmail.com>
+
+EXPOSE 8080/tcp 8888/tcp
+
+RUN \
+apt-get update && \
+apt-get install --no-install-recommends -y -o Dpkg::Options::="--force-confold" nginx supervisor && \
+apt-get clean && \
+rm -rf /var/lib/apt/lists/*
+
+COPY demo/supervisord.conf /etc/supervisor/conf.d/supervisord-nginx.conf
+
+COPY demo/nginx.conf /etc/nginx/sites-available/default
+
+CMD /usr/bin/supervisord
