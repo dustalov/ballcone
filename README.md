@@ -26,7 +26,7 @@ Balcone is a fast and lightweight server-side Web analytics solution.
 
 ## Installation
 
-```nginx
+```Nginx
 log_format balcone_json_petrovich escape=json
     '{'
     '"service": "petrovich", '
