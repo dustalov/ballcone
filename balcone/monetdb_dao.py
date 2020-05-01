@@ -166,11 +166,11 @@ class MonetDAO:
         with self.transaction() as cursor:
             return cursor.execute(sql)
 
-    def schema_exists(self, schema: str) -> bool:
+    def schema_exists(self) -> bool:
         schemas = Table('schemas', schema='sys')
 
         query = Query.from_(schemas).select(schemas.name). \
-            where(schemas.name == schema)
+            where(schemas.name == self.schema)
 
         return len(self.run(query)) > 0
 

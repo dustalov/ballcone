@@ -42,6 +42,9 @@ def main():
 
     dao = MonetDAO(connection, 'balcone')
 
+    if not dao.schema_exists():
+        dao.create_schema()
+
     geoip = geolite2.reader()
 
     balcone = Balcone(dao, geoip, args.top_limit, args.period)
