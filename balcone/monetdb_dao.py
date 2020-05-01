@@ -1,27 +1,29 @@
 __author__ = 'Dmitry Ustalov'
 
 import logging
+from calendar import timegm
 from contextlib import contextmanager
 from datetime import datetime, date
 from ipaddress import ip_address, IPv4Address, IPv6Address
 from typing import Generator, NamedTuple, Optional, List, Sequence, Union, Any, NewType, Tuple, Deque, Set, cast
 
-import duckdb
+import monetdblite
+from monetdblite.monetize import monet_identifier_escape
 from pypika import Query, Column, Field, Table, Order, functions as fn, analytics as an
 from pypika.queries import QueryBuilder
 
 smallint = NewType('smallint', int)
 
 TYPES = {
-    datetime: 'timestamp',
-    date: 'date',
-    str: 'varchar',
-    smallint: 'smallint',
-    int: 'integer',
-    float: 'double',
-    IPv4Address: 'varchar',
-    IPv6Address: 'varchar',
-    bool: 'boolean'
+    datetime: 'BIGINT',
+    date: 'INTEGER',
+    str: 'TEXT',
+    smallint: 'SMALLINT',
+    int: 'INTEGER',
+    float: 'DOUBLE',
+    IPv4Address: 'TEXT',
+    IPv6Address: 'TEXT',
+    bool: 'BOOLEAN'
 }
 
 
@@ -59,8 +61,11 @@ def sql_value_to_python(name: str, annotation: Any, value: Any) -> Any:
     args, null = optional_types(annotation)
     first_type = next(iter(args))
 
-    if isinstance(value, (datetime, date)):
-        return value
+    if first_type == datetime:
+        return datetime.utcfromtimestamp(value)
+
+    if first_type == date:
+        return date.fromordinal(value)
 
     if first_type == smallint:
         return int(value)
@@ -99,10 +104,10 @@ class Entry(NamedTuple):
     @staticmethod
     def as_value(value: Any, annotation: Any = None) -> Any:
         if isinstance(value, datetime):
-            return cast(datetime, value).isoformat(' ')
+            return timegm(cast(datetime, value).utctimetuple())
 
         if isinstance(value, date):
-            return cast(date, value).isoformat()
+            return cast(date, value).toordinal()
 
         if isinstance(value, (IPv4Address, IPv6Address)):
             return str(value)
@@ -147,25 +152,51 @@ class AverageResult(NamedTuple):
     elements: List[Average]
 
 
-class DuckDAO:
-    def __init__(self, db: duckdb.DuckDBPyConnection):
+class MonetDAO:
+    def __init__(self, db: monetdblite.Connection, schema: str):
         self.db = db
-        self.master = Table('sqlite_master')
+        self.schema = schema
+
+    def create_schema(self):
+        # MonetDB does not support DROP SCHEMA: https://www.monetdb.org/Documentation/SQLreference/Schema
+        sql = f'CREATE SCHEMA {monet_identifier_escape(self.schema)};'
+
+        logging.debug(sql)
+
+        with self.transaction() as cursor:
+            return cursor.execute(sql)
+
+    def schema_exists(self, schema: str) -> bool:
+        schemas = Table('schemas', schema='sys')
+
+        query = Query.from_(schemas).select(schemas.name). \
+            where(schemas.name == schema)
+
+        return len(self.run(query)) > 0
 
     def tables(self) -> Sequence[str]:
-        query = Query.from_(self.master).select(self.master.name). \
-            where(self.master.type == 'table').distinct()
+        schemas = Table('schemas', schema='sys')
+        tables = Table('tables', schema='sys')
+
+        query = Query.from_(tables).select(tables.name). \
+            join(schemas).on(schemas.id == tables.schema_id). \
+            where(schemas.name == self.schema). \
+            orderby(tables.name)
 
         return [table for table, *_ in self.run(query)]
 
     def table_exists(self, table: str) -> bool:
-        query = Query.from_(self.master).select(self.master.name). \
-            where((self.master.type == 'table') & (self.master.name == table))
+        schemas = Table('schemas', schema='sys')
+        tables = Table('tables', schema='sys')
+
+        query = Query.from_(tables).select(tables.name). \
+            join(schemas).on(schemas.id == tables.schema_id). \
+            where((schemas.name == self.schema) & (tables.name == table))
 
         return len(self.run(query)) > 0
 
     def create_table(self, table: str):
-        target = Table(table)
+        target = Table(table, schema=self.schema)
 
         columns = [Column(name, python_type_to_sql(annotation)) for name, annotation in Entry.__annotations__.items()]
 
@@ -178,16 +209,15 @@ class DuckDAO:
             return cursor.execute(sql)
 
     def drop_table(self, table: str):
-        # FIXME: escaping
-        sql = f'DROP TABLE "{table}";'
+        sql = f'DROP TABLE {monet_identifier_escape(self.schema)}.{monet_identifier_escape(table)};)'
 
         logging.debug(sql)
 
         with self.transaction() as cursor:
             return cursor.execute(sql)
 
-    def insert_into(self, table: str, entry: Entry, cursor: Optional[duckdb.DuckDBPyConnection] = None):
-        target = Table(table)
+    def insert_into(self, table: str, entry: Entry, cursor: Optional[monetdblite.cursors.Cursor] = None):
+        target = Table(table, schema=self.schema)
 
         query = Query.into(target).insert(*entry.as_values())
         sql = str(query)
@@ -225,7 +255,7 @@ class DuckDAO:
 
     def select(self, table: str, start: Optional[date] = None, stop: Optional[date] = None,
                limit: Optional[int] = None) -> List[Entry]:
-        target = Table(table)
+        target = Table(table, schema=self.schema)
 
         query = Query.from_(target).select('*').orderby(target.datetime).limit(limit)
 
@@ -239,7 +269,7 @@ class DuckDAO:
         return rows
 
     def select_average(self, table: str, field: str, start: date = None, stop: date = None) -> AverageResult:
-        target = Table(table)
+        target = Table(table, schema=self.schema)
         target_field = Field(field, table=target)
 
         query = Query.from_(target).select(target.date,
@@ -253,10 +283,8 @@ class DuckDAO:
         result = AverageResult(table=table, field=field, elements=[])
 
         for current in self.run(query):
-            current_date = current[0]
-
             result.elements.append(Average(
-                date=current_date,
+                date=date.fromordinal(current[0]),
                 avg=float(current[1]),
                 sum=float(current[2]) if current[3] else 0.,
                 count=int(current[3])
@@ -266,7 +294,7 @@ class DuckDAO:
 
     def select_count(self, table: str, field: Optional[str] = None, start: Optional[date] = None,
                      stop: Optional[date] = None) -> CountResult:
-        target = Table(table)
+        target = Table(table, schema=self.schema)
         count_field = fn.Count(Field(field, table=target) if field else target.date, alias='count')
 
         if field:
@@ -281,7 +309,7 @@ class DuckDAO:
 
         for current in self.run(query):
             result.elements.append(Count(
-                date=current[0],
+                date=date.fromordinal(current[0]),
                 group=None,
                 count=int(current[1])
             ))
@@ -291,7 +319,7 @@ class DuckDAO:
     def select_count_group(self, table: str, field: Optional[str], group: str, distinct: bool = False,
                            start: Optional[date] = None, stop: Optional[date] = None,
                            ascending: bool = True, limit: Optional[int] = None) -> CountResult:
-        target = Table(table)
+        target = Table(table, schema=self.schema)
         count_field = fn.Count(Field(field, table=target) if field else target.date, alias='count')
 
         if distinct:
@@ -320,7 +348,7 @@ class DuckDAO:
 
         for current in self.run(query):
             result.elements.append(Count(
-                date=current[0],
+                date=date.fromordinal(current[0]),
                 group=current[1],
                 count=int(current[2])
             ))
@@ -353,19 +381,19 @@ class DuckDAO:
         return query
 
     @contextmanager
-    def cursor(self) -> Generator[duckdb.DuckDBPyConnection, None, None]:
+    def cursor(self) -> Generator[monetdblite.cursors.Cursor, None, None]:
         cursor = self.db.cursor()
 
         try:
             yield cursor
-        except RuntimeError as e:
+        except monetdblite.exceptions.DatabaseError as e:
+            cursor.rollback()
             raise e
         finally:
             cursor.close()
 
     @contextmanager
-    def transaction(self) -> Generator[duckdb.DuckDBPyConnection, None, None]:
+    def transaction(self) -> Generator[monetdblite.cursors.Cursor, None, None]:
         with self.cursor() as cursor:
-            cursor.begin()
             yield cursor
             cursor.commit()

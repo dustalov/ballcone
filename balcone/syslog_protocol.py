@@ -12,7 +12,7 @@ import httpagentparser
 import simplejson
 
 from balcone.core import Balcone
-from balcone.duckdb_dao import Entry, smallint
+from balcone.monetdb_dao import Entry, smallint
 
 # nginx's output cannot be properly parsed by any parser I tried
 NGINX_SYSLOG = re.compile(r'\A<[0-9]{1,3}>.*?: (?P<message>.+)\Z')

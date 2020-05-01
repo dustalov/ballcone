@@ -4,12 +4,14 @@ from datetime import datetime, date
 from ipaddress import ip_address
 from typing import cast
 
-import duckdb
+import monetdblite
 
-from balcone.duckdb_dao import DuckDAO, Entry, smallint
+from balcone.monetdb_dao import MonetDAO, Entry, smallint
 
 
-class TestDuckDAO(unittest.TestCase):
+class TestMonetDAO(unittest.TestCase):
+    SCHEMA = 'test_dao'
+
     ENTRIES_20200101 = [
         Entry(datetime=datetime(2020, 1, 1, 12), date=date(2020, 1, 1),
               host='example.com', method='GET', path='/', status=cast(smallint, 200), length=1024,
@@ -45,11 +47,15 @@ class TestDuckDAO(unittest.TestCase):
     ENTRIES = [*ENTRIES_20200101, *ENTRIES_20200102]
 
     def setUp(self):
-        self.db = duckdb.connect(':memory:')
-        self.dao = DuckDAO(self.db)
+        self.db = monetdblite.make_connection(':memory:')
+        self.dao = MonetDAO(self.db, self.SCHEMA)
+        self.dao.create_schema()
 
     def tearDown(self):
         self.db.close()
+
+    def test_schema_exists(self):
+        self.assertTrue(self.dao.schema_exists(self.SCHEMA))
 
     def test_create_and_drop_table(self):
         table1 = 'test_create_and_drop_table_1'
@@ -139,22 +145,26 @@ class TestDuckDAO(unittest.TestCase):
         self.assertEqual(table, before_exact.table)
         self.assertEqual('generation_time', before_exact.field)
         self.assertEqual(1, len(before_exact.elements))
+        self.assertEqual(date(2020, 1, 1), before_exact.elements[0].date)
         self.assertEqual(0.055, before_exact.elements[0].avg)
         self.assertEqual(len(self.ENTRIES_20200101), before_exact.elements[0].count)
 
         exact = self.dao.select_average(table, 'generation_time', start=date(2020, 1, 1), stop=date(2020, 1, 1))
         self.assertEqual(table, exact.table)
         self.assertEqual('generation_time', exact.field)
-        self.assertEqual(1, len(before_exact.elements))
-        self.assertEqual(0.055, before_exact.elements[0].avg)
-        self.assertEqual(len(self.ENTRIES_20200101), before_exact.elements[0].count)
+        self.assertEqual(1, len(exact.elements))
+        self.assertEqual(date(2020, 1, 1), exact.elements[0].date)
+        self.assertEqual(0.055, exact.elements[0].avg)
+        self.assertEqual(len(self.ENTRIES_20200101), exact.elements[0].count)
 
         after_exact = self.dao.select_average(table, 'generation_time', start=date(2020, 1, 1))
         self.assertEqual(table, after_exact.table)
         self.assertEqual('generation_time', after_exact.field)
         self.assertEqual(2, len(after_exact.elements))
+        self.assertEqual(date(2020, 1, 1), after_exact.elements[0].date)
         self.assertEqual(0.055, after_exact.elements[0].avg)
         self.assertEqual(len(self.ENTRIES_20200101), after_exact.elements[0].count)
+        self.assertEqual(date(2020, 1, 2), after_exact.elements[1].date)
         self.assertEqual(0.505, after_exact.elements[1].avg)
         self.assertEqual(len(self.ENTRIES_20200102), after_exact.elements[1].count)
 
@@ -162,6 +172,7 @@ class TestDuckDAO(unittest.TestCase):
         self.assertEqual(table, after.table)
         self.assertEqual('generation_time', after.field)
         self.assertEqual(1, len(after.elements))
+        self.assertEqual(date(2020, 1, 2), after.elements[0].date)
         self.assertEqual(0.505, after.elements[0].avg)
         self.assertEqual(len(self.ENTRIES_20200102), after.elements[0].count)
 
@@ -185,6 +196,7 @@ class TestDuckDAO(unittest.TestCase):
         self.assertIsNone(before_exact.ascending)
         self.assertIsNone(before_exact.group)
         self.assertEqual(1, len(before_exact.elements))
+        self.assertEqual(date(2020, 1, 1), before_exact.elements[0].date)
         self.assertEqual(2, before_exact.elements[0].count)
 
         exact = self.dao.select_count(table, start=date(2020, 1, 1), stop=date(2020, 1, 1))
@@ -194,6 +206,7 @@ class TestDuckDAO(unittest.TestCase):
         self.assertIsNone(exact.ascending)
         self.assertIsNone(exact.group)
         self.assertEqual(1, len(exact.elements))
+        self.assertEqual(date(2020, 1, 1), exact.elements[0].date)
         self.assertEqual(2, before_exact.elements[0].count)
 
         after_exact = self.dao.select_count(table, start=date(2020, 1, 1))
@@ -203,7 +216,9 @@ class TestDuckDAO(unittest.TestCase):
         self.assertIsNone(after_exact.ascending)
         self.assertIsNone(after_exact.group)
         self.assertEqual(2, len(after_exact.elements))
+        self.assertEqual(date(2020, 1, 1), after_exact.elements[0].date)
         self.assertEqual(2, after_exact.elements[0].count)
+        self.assertEqual(date(2020, 1, 2), after_exact.elements[1].date)
         self.assertEqual(2, after_exact.elements[1].count)
 
         after = self.dao.select_count(table, start=date(2020, 1, 2))
@@ -213,6 +228,7 @@ class TestDuckDAO(unittest.TestCase):
         self.assertIsNone(after.ascending)
         self.assertIsNone(after.group)
         self.assertEqual(1, len(after.elements))
+        self.assertEqual(date(2020, 1, 2), after.elements[0].date)
         self.assertEqual(2, after.elements[0].count)
 
     def test_select_count_group(self):
@@ -235,7 +251,9 @@ class TestDuckDAO(unittest.TestCase):
         self.assertTrue(before_exact.ascending)
         self.assertEqual('platform_name', before_exact.group)
         self.assertEqual(2, len(before_exact.elements))
+        self.assertEqual(date(2020, 1, 1), before_exact.elements[0].date)
         self.assertEqual(1, before_exact.elements[0].count)
+        self.assertEqual(date(2020, 1, 1), before_exact.elements[1].date)
         self.assertEqual(1, before_exact.elements[1].count)
 
         exact = self.dao.select_count_group(table, 'ip', 'platform_name', start=date(2020, 1, 1), stop=date(2020, 1, 1))
@@ -245,7 +263,9 @@ class TestDuckDAO(unittest.TestCase):
         self.assertTrue(exact.ascending)
         self.assertEqual('platform_name', exact.group)
         self.assertEqual(2, len(exact.elements))
+        self.assertEqual(date(2020, 1, 1), exact.elements[0].date)
         self.assertEqual(1, exact.elements[0].count)
+        self.assertEqual(date(2020, 1, 1), exact.elements[1].date)
         self.assertEqual(1, exact.elements[1].count)
 
         after_exact = self.dao.select_count_group(table, 'ip', 'platform_name', start=date(2020, 1, 1))
@@ -255,8 +275,11 @@ class TestDuckDAO(unittest.TestCase):
         self.assertTrue(after_exact.ascending)
         self.assertEqual('platform_name', after_exact.group)
         self.assertEqual(3, len(after_exact.elements))
+        self.assertEqual(date(2020, 1, 1), after_exact.elements[0].date)
         self.assertEqual(1, after_exact.elements[0].count)
+        self.assertEqual(date(2020, 1, 1), after_exact.elements[1].date)
         self.assertEqual(1, after_exact.elements[1].count)
+        self.assertEqual(date(2020, 1, 2), after_exact.elements[2].date)
         self.assertEqual(2, after_exact.elements[2].count)
 
         after = self.dao.select_count_group(table, 'ip', 'platform_name', start=date(2020, 1, 2))
@@ -266,7 +289,12 @@ class TestDuckDAO(unittest.TestCase):
         self.assertTrue(after.ascending)
         self.assertEqual('platform_name', after.group)
         self.assertEqual(1, len(after.elements))
+        self.assertEqual(date(2020, 1, 2), after.elements[0].date)
         self.assertEqual(2, after.elements[0].count)
+
+    def test_error(self):
+        with self.assertRaises(monetdblite.exceptions.DatabaseError):
+            self.dao.run('SELECT UNSELECT;')
 
     def seed(self, table, create_table=True, insert_entries=True):
         if create_table:

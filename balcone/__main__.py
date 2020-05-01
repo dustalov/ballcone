@@ -9,15 +9,15 @@ import sys
 from contextlib import suppress
 
 import aiohttp_jinja2
-import duckdb
 import jinja2
+import monetdblite
 from aiohttp import web
 from geolite2 import geolite2
 
 from balcone import __version__
 from balcone.core import Balcone
 from balcone.debug_protocol import DebugProtocol
-from balcone.duckdb_dao import DuckDAO
+from balcone.monetdb_dao import MonetDAO
 from balcone.syslog_protocol import SyslogProtocol
 from balcone.web_balcone import WebBalcone
 
@@ -31,15 +31,16 @@ def main():
     parser.add_argument('-dp', '--debug-port', default=65141, type=int, help='SQL debug TCP port to bind')
     parser.add_argument('-wh', '--web-host', default='127.0.0.1', help='Web interface host to bind')
     parser.add_argument('-wp', '--web-port', default=8080, type=int, help='Web interface TCP port to bind')
+    parser.add_argument('-m', '--monetdb', default='monetdb', help='Path to MonetDB database')
     parser.add_argument('-p', '--period', default=5, type=int, help='Persistence period, in seconds')
     parser.add_argument('-t', '--top-limit', default=5, type=int, help='Limit for top-n queries')
     args = parser.parse_args()
 
     logging.basicConfig(format='%(asctime)s %(message)s', level=logging.DEBUG)
 
-    connection = duckdb.connect('balcone.db')
+    connection = monetdblite.make_connection(args.monetdb)
 
-    dao = DuckDAO(connection)
+    dao = MonetDAO(connection, 'balcone')
 
     geoip = geolite2.reader()
 

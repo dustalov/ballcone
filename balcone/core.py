@@ -10,7 +10,7 @@ from typing import cast, Union, Optional, Dict, Deque, Any
 import simplejson
 from geolite2 import maxminddb
 
-from .duckdb_dao import DuckDAO, Entry, AverageResult, CountResult
+from .monetdb_dao import MonetDAO, Entry, AverageResult, CountResult
 
 VALID_SERVICE = re.compile(r'\A[\w]+\Z')
 
@@ -34,11 +34,13 @@ class BalconeJSONEncoder(simplejson.JSONEncoder):
         if isinstance(obj, (IPv4Address, IPv6Address)):
             return str(obj)
 
+        print(obj)
+
         return super().default(obj)
 
 
 class Balcone:
-    def __init__(self, dao: DuckDAO, geoip: maxminddb.reader.Reader,
+    def __init__(self, dao: MonetDAO, geoip: maxminddb.reader.Reader,
                  top_limit: int = 5, persist_period: int = 5):
         self.dao = dao
         self.geoip = geoip
