@@ -55,7 +55,7 @@ class TestMonetDAO(unittest.TestCase):
         self.db.close()
 
     def test_schema_exists(self):
-        self.assertTrue(self.dao.schema_exists(self.SCHEMA))
+        self.assertTrue(self.dao.schema_exists())
 
     def test_create_and_drop_table(self):
         table1 = 'test_create_and_drop_table_1'
