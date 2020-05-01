@@ -43,7 +43,7 @@ package_data = {'': package_files('balcone/templates')}
 
 setup(name='balcone',
       version=__version__,
-      description='Balcone is a simple Web analytics solution.',
+      description='Balcone is a fast and lightweight server-side Web analytics solution.',
       long_description=long_description,
       long_description_content_type='text/markdown',
       url='https://github.com/dustalov/balcone',
