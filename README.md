@@ -26,11 +26,9 @@ make docker # docker build --rm -t balcone .
 docker-compose up
 ```
 
-## Roadmap
-
-* Switch to [DuckDB](https://github.com/cwida/duckdb) (as soon as sparse tables are supported)
-
 ## Installation
+
+`pip3 install -e git+https://github.com/dustalov/balcone@master#egg=balcone`
 
 ```Nginx
 log_format balcone_json_petrovich escape=json
@@ -54,6 +52,12 @@ log_format balcone_json_petrovich escape=json
 
     access_log syslog:server=127.0.0.1:65140 balcone_json_petrovich;
 ```
+
+It is possible to run Balcone as a [systemd](https://systemd.io/) service, see [balcone.service](balcone.service) as an example.
+
+## Roadmap
+
+* Switch to [DuckDB](https://github.com/cwida/duckdb) (as soon as sparse tables are supported)
 
 ## Alternatives
 
