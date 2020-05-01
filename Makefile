@@ -5,6 +5,9 @@ export LANG := en_US.UTF-8
 run: .venv-installed
 	nice venv/bin/balcone
 
+test:
+	python3 -munittest discover
+
 mypy:
 	mypy --ignore-missing-imports $(shell git ls-files '*.py')
 
