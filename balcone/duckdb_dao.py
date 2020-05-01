@@ -177,6 +177,15 @@ class DuckDAO:
         with self.transaction() as cursor:
             return cursor.execute(sql)
 
+    def drop_table(self, table: str):
+        # FIXME: escaping
+        sql = f'DROP TABLE "{table}";'
+
+        logging.debug(sql)
+
+        with self.transaction() as cursor:
+            return cursor.execute(sql)
+
     def insert_into(self, table: str, entry: Entry, cursor: Optional[duckdb.DuckDBPyConnection] = None):
         target = Table(table)
 
