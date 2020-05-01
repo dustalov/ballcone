@@ -34,7 +34,7 @@
                                href="{{ url('service', service=service) }}">{{ service }}</a></li>
                         {% endfor %}
                     </ul>
-                    {% endfor %}
+                    {% endif %}
                     <p class="menu-label">Configuration Templates</p>
                     <ul class="menu-list">
                         <li><a {% if current_page == 'nginx' %}class="is-active" {% endif %}
