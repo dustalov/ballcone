@@ -126,8 +126,6 @@ class WebBalcone:
     async def nginx(self, request: web.Request):
         services = self.balcone.dao.tables()
 
-        print(request.query)
-
         service = request.query.get('service')
 
         if not service:

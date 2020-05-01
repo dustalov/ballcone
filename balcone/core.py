@@ -34,8 +34,6 @@ class BalconeJSONEncoder(simplejson.JSONEncoder):
         if isinstance(obj, (IPv4Address, IPv6Address)):
             return str(obj)
 
-        print(obj)
-
         return super().default(obj)
 
 
