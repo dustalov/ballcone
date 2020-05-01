@@ -58,6 +58,7 @@ It is possible to run Balcone as a [systemd](https://systemd.io/) service, see [
 ## Roadmap
 
 * Switch to [DuckDB](https://github.com/cwida/duckdb) (as soon as sparse tables are supported)
+* Use the log message format compatible to the one used by Matomo: <https://github.com/matomo-org/matomo-log-analytics>
 
 ## Alternatives
 
