@@ -21,17 +21,22 @@ class WebBalcone:
     async def root(self, _: web.Request):
         today = datetime.utcnow().date()
 
-        services = OrderedDict()
+        services = self.balcone.dao.tables()
 
-        for service in self.balcone.dao.tables():
-            count = self.balcone.visits(service, today, today)
+        dashboard = []
 
-            services[service] = count.elements[0].count if count.elements else 0
+        for service in services:
+            unique = self.balcone.unique(service, today, today)
+
+            dashboard.append((service, unique.elements[0].count if unique.elements else 0))
+
+        dashboard.sort(key=lambda service_count: (-service_count[1], service_count[0]))
 
         return {
             'version': __version__,
             'current_page': 'root',
-            'services': services
+            'services': services,
+            'dashboard': dashboard
         }
 
     async def services(self, request: web.Request):

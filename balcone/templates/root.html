@@ -1,15 +1,15 @@
 {% extends "layout.html" %}
 {% block content %}
-{% for column in services.items() | batch(2) %}
+{% for column in dashboard | batch(2) %}
 <div class="columns">
-    {% for service, visits in column %}
+    {% for service, count in column %}
     <div class="column is-one-half">
         <div class="card">
             <div class="card-content">
                 <p class="title"><a href="{{ url('service', service=service) }}">{{ service }}</a></p>
                 <p class="subtitle">
-                    {{ visits }} unique
-                    {% if visits == 1 %}
+                    {{ count }} unique
+                    {% if count == 1 %}
                     visit
                     {% else %}
                     visits
