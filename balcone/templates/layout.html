@@ -26,15 +26,15 @@
                         <li><a {% if current_page == 'sql' %}class="is-active" {% endif %}
                             href="{{ url('sql') }}">SQL Console</a></li>
                     </ul>
+                    {% if services %}
                     <p class="menu-label">Services</p>
                     <ul class="menu-list">
                         {% for service in services %}
                         <li><a {% if service == current_service %}class="is-active" {% endif %}
                                href="{{ url('service', service=service) }}">{{ service }}</a></li>
-                        {% else %}
-                        <li>No services yet</li>
                         {% endfor %}
                     </ul>
+                    {% endfor %}
                     <p class="menu-label">Configuration Templates</p>
                     <ul class="menu-list">
                         <li><a {% if current_page == 'nginx' %}class="is-active" {% endif %}
