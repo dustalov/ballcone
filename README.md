@@ -4,10 +4,10 @@ Ballcone is a fast and lightweight server-side Web analytics solution.
 
 [![Unit Tests on GitHub Actions][github_tests_badge]][github_tests_link] [![Docker Hub][docker_hub_badge]][docker_hub_link]
 
-[github_tests_badge]: https://github.com/dustalov/balcone/workflows/Unit%20Tests/badge.svg?branch=master
-[github_tests_link]: https://github.com/dustalov/balcone/actions?query=workflow%3A%22Unit+Tests%22
-[docker_hub_badge]: https://img.shields.io/docker/pulls/dustalov/balcone
-[docker_hub_link]: https://hub.docker.com/r/dustalov/balcone
+[github_tests_badge]: https://github.com/dustalov/ballcone/workflows/Unit%20Tests/badge.svg?branch=master
+[github_tests_link]: https://github.com/dustalov/ballcone/actions?query=workflow%3A%22Unit+Tests%22
+[docker_hub_badge]: https://img.shields.io/docker/pulls/dustalov/ballcone
+[docker_hub_link]: https://hub.docker.com/r/dustalov/ballcone
 
 ## Design Goals
 
@@ -44,7 +44,7 @@ This repository contains an example configuration of nginx and Ballcone. Just ru
 ```shell
 docker-compose up
 # or
-docker run --rm -p '127.0.0.1:8888:80' -p '127.0.0.1:8080:8080' dustalov/balcone:demo
+docker run --rm -p '127.0.0.1:8888:80' -p '127.0.0.1:8080:8080' dustalov/ballcone:demo
 ```
 
 ## Naming and Meaning
@@ -59,23 +59,23 @@ Regardless of the meaning choice, Ballcone helps you looking for your websites.
 
 ### Getting Ballcone
 
-Running the Docker image is the simplest way to get started. Docker Hub performs automated builds of the Ballcone source code from GitHub: <https://hub.docker.com/r/dustalov/balcone>. The following command runs Ballcone on `127.0.0.1`: the syslog protocol will be available via `65140/udp`, the Web interface will be available via `8080/tcp`, and the data will be stored in `/var/lib/balcone` of the host machine.
+Running the Docker image is the simplest way to get started. Docker Hub performs automated builds of the Ballcone source code from GitHub: <https://hub.docker.com/r/dustalov/ballcone>. The following command runs Ballcone on `127.0.0.1`: the syslog protocol will be available via `65140/udp`, the Web interface will be available via `8080/tcp`, and the data will be stored in `/var/lib/ballcone` of the host machine.
 
 ```shell
-docker run --init -p '127.0.0.1:8080:8080' -p '127.0.0.1:65140:65140/udp' -v '/var/lib/balcone/monetdb:/usr/src/app/monetdb' dustalov/balcone balcone -sh '0.0.0.0' -wh '0.0.0.0'
+docker run --init -p '127.0.0.1:8080:8080' -p '127.0.0.1:65140:65140/udp' -v '/var/lib/ballcone/monetdb:/usr/src/app/monetdb' dustalov/ballcone ballcone -sh '0.0.0.0' -wh '0.0.0.0'
 ```
 
 However, Docker is not the only option. Alternatively, Ballcone can be installed directly on the host machine:
 
 ```shell
-pip3 install -e git+https://github.com/dustalov/balcone@master#egg=balcone
+pip3 install -e git+https://github.com/dustalov/ballcone@master#egg=ballcone
 ```
 
-Then it can be either runned manually (`balcone` without arguments will create the `monetdb` directory inside the current directory) or be configured as a [systemd](https://systemd.io/) service, see [balcone.service](balcone.service) as an example.
+Then it can be either runned manually (`ballcone` without arguments will create the `monetdb` directory inside the current directory) or be configured as a [systemd](https://systemd.io/) service, see [ballcone.service](ballcone.service) as an example.
 
 ### Configuring nginx
 
-You need to define in the nginx configuration file the JSON-compatible log format for your service. Let us call it `balcone_json_example`. This format is similar to the one used in Matomo (see [matomo-log-analytics](https://github.com/matomo-org/matomo-log-analytics)). It should be put *before* the `server` block.
+You need to define in the nginx configuration file the JSON-compatible log format for your service. Let us call it `ballcone_json_example`. This format is similar to the one used in Matomo (see [matomo-log-analytics](https://github.com/matomo-org/matomo-log-analytics)). It should be put *before* the `server` block.
 
 ```Nginx
 log_format ballcone_json_example escape=json

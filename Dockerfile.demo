@@ -1,4 +1,4 @@
-FROM dustalov/balcone
+FROM dustalov/ballcone
 
 MAINTAINER Dmitry Ustalov <dmitry.ustalov@gmail.com>
 

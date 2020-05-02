@@ -1,0 +1,12 @@
+[Unit]
+Description=Ballcone
+After=network.target
+
+[Service]
+User=nobody
+WorkingDirectory=/var/lib/ballcone
+ExecStart=/usr/local/bin/ballcone -m '/var/lib/ballcone/monetdb'
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

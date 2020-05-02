@@ -31,7 +31,7 @@ class TestMonetDAO(unittest.TestCase):
     ENTRIES_20200102 = [
         Entry(datetime=datetime(2020, 1, 2, 23, 59), date=date(2020, 1, 2),
               host='example.com', method='GET', path='/', status=cast(smallint, 200), length=256,
-              generation_time=0.01, referer='https://github.com/dustalov/balcone',
+              generation_time=0.01, referer='https://github.com/dustalov/ballcone',
               ip=ip_address('192.168.1.2'), country_iso_code='UNKNOWN',
               platform_name='iOS', platform_version='13.3.1',
               browser_name='Safari', browser_version='13.0.5', is_robot=False),
