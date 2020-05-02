@@ -159,7 +159,7 @@ class MonetDAO:
 
     def create_schema(self):
         # MonetDB does not support DROP SCHEMA: https://www.monetdb.org/Documentation/SQLreference/Schema
-        sql = f'CREATE SCHEMA {monet_identifier_escape(self.schema)};'
+        sql = f'CREATE SCHEMA {monet_identifier_escape(self.schema)}'
 
         logging.debug(sql)
 
@@ -209,7 +209,7 @@ class MonetDAO:
             return cursor.execute(sql)
 
     def drop_table(self, table: str):
-        sql = f'DROP TABLE {monet_identifier_escape(self.schema)}.{monet_identifier_escape(table)};)'
+        sql = f'DROP TABLE {monet_identifier_escape(self.schema)}.{monet_identifier_escape(table)}'
 
         logging.debug(sql)
 
