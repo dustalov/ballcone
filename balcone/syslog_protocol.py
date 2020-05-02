@@ -4,10 +4,11 @@ import asyncio
 import logging
 import re
 from collections import deque
-from datetime import datetime, timezone
+from datetime import timezone
 from ipaddress import ip_address
 from typing import cast, Tuple, Union, Optional
 
+import dateutil.parser
 import httpagentparser
 import simplejson
 
@@ -62,7 +63,7 @@ class SyslogProtocol(asyncio.DatagramProtocol):
 
             self.balcone.queue[service] = deque()
 
-        current_datetime = datetime.fromisoformat(content['date']).astimezone(timezone.utc)
+        current_datetime = dateutil.parser.isoparse(content['date']).astimezone(timezone.utc)
 
         user_agent = httpagentparser.detect(content['user_agent'])
 
