@@ -78,11 +78,12 @@ def main():
     finally:
         all_tasks_func = asyncio.all_tasks if hasattr(asyncio, 'all_tasks') else asyncio.Task.all_tasks  # Python 3.6
 
-        for task in all_tasks_func():
-            task.cancel()
+        with suppress(RuntimeError):
+            for task in all_tasks_func():
+                task.cancel()
 
-            with suppress(asyncio.CancelledError):
-                loop.run_until_complete(task)
+                with suppress(asyncio.CancelledError):
+                    loop.run_until_complete(task)
 
         geoip.close()
 
