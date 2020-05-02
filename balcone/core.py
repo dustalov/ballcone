@@ -138,10 +138,7 @@ class Balcone:
         return None
 
     @staticmethod
-    def iso_code(geoip: maxminddb.reader.Reader, ip: str) -> str:
+    def iso_code(geoip: maxminddb.reader.Reader, ip: str) -> Optional[str]:
         geo = geoip.get(ip)
 
-        if geo and 'country' in geo:
-            return geo['country'].get('iso_code', 'UNKNOWN')
-        else:
-            return 'UNKNOWN'
+        return geo['country'].get('iso_code', None) if geo and 'country' in geo else None

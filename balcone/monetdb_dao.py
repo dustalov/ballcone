@@ -88,7 +88,7 @@ class Entry(NamedTuple):
     referer: Optional[str]
     # IP address and derivatives
     ip: Union[IPv4Address, IPv6Address]
-    country_iso_code: str
+    country_iso_code: Optional[str]
     # derivatives from User-Agent
     platform_name: Optional[str]
     platform_version: Optional[str]
