@@ -37,7 +37,7 @@
     <label class="label" for="configuration">Snippet for <code>nginx.conf</code></label>
     <div class="control">
         <textarea id="configuration" class="textarea is-family-monospace" rows="19" readonly>
-# Put this before the `server` block
+# Put this before the `server` context
 log_format ballcone_json_{{ service }} escape=json
     '{'
     '"service": "{{ service }}", '
@@ -53,7 +53,7 @@ log_format ballcone_json_{{ service }} escape=json
     '"date": "$time_iso8601"'
     '}';
 
-    # Put this inside the `server` block
+    # Put this inside the `server` context
     access_log syslog:server={{ ip }}:65140 ballcone_json_{{ service }};</textarea>
     </div>
 </div>
