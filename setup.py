@@ -4,7 +4,7 @@ import re
 from setuptools import setup
 
 
-def get_package_variable(name, rel_path='balcone/__init__.py'):
+def get_package_variable(name, rel_path='ballcone/__init__.py'):
     path = os.path.join(os.path.abspath(os.path.dirname(__file__)), rel_path)
 
     pattern = re.compile(r'^{}.*?([\'"])(?P<value>.+)\1.*$'.format(re.escape(name)))
@@ -39,19 +39,19 @@ def package_files(directory):
     return paths
 
 
-package_data = {'': package_files('balcone/templates')}
+package_data = {'': package_files('ballcone/templates')}
 
-setup(name='balcone',
+setup(name='ballcone',
       version=__version__,
-      description='Balcone is a fast and lightweight server-side Web analytics solution.',
+      description='Ballcone is a fast and lightweight server-side Web analytics solution.',
       long_description=long_description,
       long_description_content_type='text/markdown',
       url='https://github.com/dustalov/balcone',
       author='Dmitry Ustalov',
       license=__license__,
-      packages=['balcone'],
+      packages=['ballcone'],
       package_data=package_data,
-      entry_points={'console_scripts': ['balcone = balcone.__main__:main']},
+      entry_points={'console_scripts': ['ballcone = ballcone.__main__:main']},
       classifiers=[
           'Development Status :: 3 - Alpha',
           'Intended Audience :: Developers',

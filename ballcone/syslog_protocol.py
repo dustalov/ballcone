@@ -12,17 +12,17 @@ import dateutil.parser
 import httpagentparser
 import simplejson
 
-from balcone.core import Balcone
-from balcone.monetdb_dao import Entry, smallint
+from ballcone.core import Ballcone
+from ballcone.monetdb_dao import Entry, smallint
 
 # nginx's output cannot be properly parsed by any parser I tried
 NGINX_SYSLOG = re.compile(r'\A<[0-9]{1,3}>.*?: (?P<message>.+)\Z')
 
 
 class SyslogProtocol(asyncio.DatagramProtocol):
-    def __init__(self, balcone: Balcone):
+    def __init__(self, ballcone: Ballcone):
         super().__init__()
-        self.balcone = balcone
+        self.ballcone = ballcone
         self.transport: Optional[asyncio.BaseTransport] = None
 
     def connection_made(self, transport: asyncio.BaseTransport):
@@ -53,15 +53,15 @@ class SyslogProtocol(asyncio.DatagramProtocol):
         else:
             service = content['service'].strip().lower()
 
-        if not self.balcone.check_service(service, should_exist=False):
+        if not self.ballcone.check_service(service, should_exist=False):
             logging.info(f'Malformed service field from {addr}: {message}')
             return
 
-        if service not in self.balcone.queue:
-            if not self.balcone.dao.table_exists(service):
-                self.balcone.dao.create_table(service)
+        if service not in self.ballcone.queue:
+            if not self.ballcone.dao.table_exists(service):
+                self.ballcone.dao.create_table(service)
 
-            self.balcone.queue[service] = deque()
+            self.ballcone.queue[service] = deque()
 
         current_datetime = dateutil.parser.isoparse(content['date']).astimezone(timezone.utc)
 
@@ -78,7 +78,7 @@ class SyslogProtocol(asyncio.DatagramProtocol):
             generation_time=float(content['generation_time_milli']),
             referer=content['referrer'],
             ip=ip_address(content['ip']),
-            country_iso_code=Balcone.iso_code(self.balcone.geoip, content['ip']),
+            country_iso_code=Ballcone.iso_code(self.ballcone.geoip, content['ip']),
             platform_name=user_agent.get('platform', {}).get('name', None),
             platform_version=user_agent.get('platform', {}).get('version', None),
             browser_name=user_agent.get('browser', {}).get('name', None),
@@ -86,4 +86,4 @@ class SyslogProtocol(asyncio.DatagramProtocol):
             is_robot=user_agent.get('bot', None)
         )
 
-        self.balcone.queue[service].append(entry)
+        self.ballcone.queue[service].append(entry)

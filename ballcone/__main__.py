@@ -14,17 +14,17 @@ import monetdblite
 from aiohttp import web
 from geolite2 import geolite2
 
-from balcone import __version__
-from balcone.core import Balcone
-from balcone.debug_protocol import DebugProtocol
-from balcone.monetdb_dao import MonetDAO
-from balcone.syslog_protocol import SyslogProtocol
-from balcone.web_balcone import WebBalcone
+from ballcone import __version__
+from ballcone.core import Ballcone
+from ballcone.debug_protocol import DebugProtocol
+from ballcone.monetdb_dao import MonetDAO
+from ballcone.syslog_protocol import SyslogProtocol
+from ballcone.web_ballcone import WebBallcone
 
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('-v', '--version', action='version', version=f'Balcone v{__version__}')
+    parser.add_argument('-v', '--version', action='version', version=f'Ballcone v{__version__}')
     parser.add_argument('-sh', '--syslog-host', default='127.0.0.1', help='syslog host to bind')
     parser.add_argument('-sp', '--syslog-port', default=65140, type=int, help='syslog UDP port to bind')
     parser.add_argument('-dh', '--debug-host', default='127.0.0.1', help='SQL debug host to bind')
@@ -32,6 +32,7 @@ def main():
     parser.add_argument('-wh', '--web-host', default='127.0.0.1', help='Web interface host to bind')
     parser.add_argument('-wp', '--web-port', default=8080, type=int, help='Web interface TCP port to bind')
     parser.add_argument('-m', '--monetdb', default='monetdb', help='Path to MonetDB database')
+    parser.add_argument('-ms', '--monetdb-schema', default='ballcone', help='MonetDB schema name')
     parser.add_argument('-p', '--period', default=5, type=int, help='Persistence period, in seconds')
     parser.add_argument('-t', '--top-limit', default=5, type=int, help='Limit for top-n queries')
     args = parser.parse_args()
@@ -40,30 +41,30 @@ def main():
 
     connection = monetdblite.make_connection(args.monetdb)
 
-    dao = MonetDAO(connection, 'balcone')
+    dao = MonetDAO(connection, args.monetdb_schema)
 
     if not dao.schema_exists():
         dao.create_schema()
 
     geoip = geolite2.reader()
 
-    balcone = Balcone(dao, geoip, args.top_limit, args.period)
+    ballcone = Ballcone(dao, geoip, args.top_limit, args.period)
 
-    asyncio.ensure_future(balcone.persist_timer())
+    asyncio.ensure_future(ballcone.persist_timer())
 
     loop = asyncio.get_event_loop()
 
-    syslog = loop.create_datagram_endpoint(lambda: SyslogProtocol(balcone),
+    syslog = loop.create_datagram_endpoint(lambda: SyslogProtocol(ballcone),
                                            local_addr=(args.syslog_host, args.syslog_port))
     loop.run_until_complete(syslog)
 
-    debug = loop.create_server(lambda: DebugProtocol(balcone),
+    debug = loop.create_server(lambda: DebugProtocol(ballcone),
                                host=args.debug_host, port=args.debug_port)
     loop.run_until_complete(debug)
 
     app = web.Application()
-    aiohttp_jinja2.setup(app, loader=jinja2.PackageLoader('balcone'))
-    handler = WebBalcone(balcone)
+    aiohttp_jinja2.setup(app, loader=jinja2.PackageLoader('ballcone'))
+    handler = WebBallcone(ballcone)
     app.router.add_get('/', handler.root, name='root')
     app.router.add_get('/services', handler.services, name='services')
     app.router.add_get('/services/{service}', handler.service, name='service')
@@ -88,7 +89,7 @@ def main():
         geoip.close()
 
         try:
-            balcone.persist()
+            ballcone.persist()
         finally:
             connection.close()
 

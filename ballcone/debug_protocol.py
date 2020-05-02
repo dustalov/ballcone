@@ -6,13 +6,13 @@ from typing import cast
 
 import monetdblite
 
-from balcone.core import Balcone
+from ballcone.core import Ballcone
 
 
 class DebugProtocol(asyncio.Protocol):
-    def __init__(self, balcone: Balcone):
+    def __init__(self, ballcone: Ballcone):
         super().__init__()
-        self.balcone = balcone
+        self.ballcone = ballcone
 
     def connection_made(self, transport: asyncio.BaseTransport):
         self.transport = cast(asyncio.Transport, transport)
@@ -33,7 +33,7 @@ class DebugProtocol(asyncio.Protocol):
 
         if sql:
             try:
-                result = self.balcone.dao.run(sql)
+                result = self.ballcone.dao.run(sql)
             except monetdblite.exceptions.DatabaseError as e:
                 error = str(e)
 

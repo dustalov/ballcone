@@ -26,7 +26,7 @@ def isint(s: Optional[str]) -> bool:
         return False
 
 
-class BalconeJSONEncoder(simplejson.JSONEncoder):
+class BallconeJSONEncoder(simplejson.JSONEncoder):
     def default(self, obj: Any) -> str:
         if isinstance(obj, date):
             return obj.isoformat()
@@ -37,7 +37,7 @@ class BalconeJSONEncoder(simplejson.JSONEncoder):
         return super().default(obj)
 
 
-class Balcone:
+class Ballcone:
     def __init__(self, dao: MonetDAO, geoip: maxminddb.reader.Reader,
                  top_limit: int = 5, persist_period: int = 5):
         self.dao = dao
@@ -45,7 +45,7 @@ class Balcone:
         self.top_limit = top_limit
         self.persist_period = persist_period
         self.queue: Dict[str, Deque[Entry]] = {}
-        self.json_dumps = BalconeJSONEncoder().encode
+        self.json_dumps = BallconeJSONEncoder().encode
 
     async def persist_timer(self):
         while await asyncio.sleep(self.persist_period, result=True):

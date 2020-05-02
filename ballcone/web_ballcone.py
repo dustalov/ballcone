@@ -9,24 +9,24 @@ import aiohttp_jinja2
 import monetdblite
 from aiohttp import web
 
-from balcone import __version__
-from balcone.core import VALID_SERVICE, Balcone
+from ballcone import __version__
+from ballcone.core import VALID_SERVICE, Ballcone
 
 
-class WebBalcone:
-    def __init__(self, balcone: Balcone):
-        self.balcone = balcone
+class WebBallcone:
+    def __init__(self, ballcone: Ballcone):
+        self.ballcone = ballcone
 
     @aiohttp_jinja2.template('root.html')
     async def root(self, _: web.Request):
         today = datetime.utcnow().date()
 
-        services = self.balcone.dao.tables()
+        services = self.ballcone.dao.tables()
 
         dashboard = []
 
         for service in services:
-            unique = self.balcone.unique(service, today, today)
+            unique = self.ballcone.unique(service, today, today)
 
             dashboard.append((service, unique.elements[0].count if unique.elements else 0))
 
@@ -44,18 +44,18 @@ class WebBalcone:
 
     @aiohttp_jinja2.template('service.html')
     async def service(self, request: web.Request):
-        services = self.balcone.dao.tables()
+        services = self.ballcone.dao.tables()
         service = request.match_info.get('service', None)
 
-        if not self.balcone.check_service(service):
+        if not self.ballcone.check_service(service):
             raise web.HTTPNotFound(text=f'No such service: {service}')
 
         stop = datetime.utcnow().date()
         start = stop - timedelta(days=7 - 1)
 
         queries = {
-            'visits': self.balcone.visits(service, start, stop),
-            'unique': self.balcone.unique(service, start, stop)
+            'visits': self.ballcone.visits(service, start, stop),
+            'unique': self.ballcone.unique(service, start, stop)
         }
 
         overview: Dict[date, Dict[str, int]] = OrderedDict()
@@ -67,11 +67,11 @@ class WebBalcone:
 
                 overview[element.date][query] = element.count
 
-        time = self.balcone.time(service, start, stop)
+        time = self.ballcone.time(service, start, stop)
 
-        paths = self.balcone.uri(service, start, stop, limit=self.balcone.top_limit)
+        paths = self.ballcone.uri(service, start, stop, limit=self.ballcone.top_limit)
 
-        browsers = self.balcone.browser(service, start, stop, limit=self.balcone.top_limit)
+        browsers = self.ballcone.browser(service, start, stop, limit=self.ballcone.top_limit)
 
         return {
             'version': __version__,
@@ -87,7 +87,7 @@ class WebBalcone:
     async def query(self, request: web.Request):
         service, command = request.match_info['service'], request.match_info['query']
 
-        if not self.balcone.check_service(service):
+        if not self.ballcone.check_service(service):
             raise web.HTTPNotFound(text=f'No such service: {service}')
 
         stop = datetime.utcnow().date()
@@ -95,9 +95,9 @@ class WebBalcone:
 
         parameter = request.query.get('parameter', None)
 
-        response = self.balcone.handle_command(service, command, parameter, start, stop)
+        response = self.ballcone.handle_command(service, command, parameter, start, stop)
 
-        return web.json_response(response, dumps=self.balcone.json_dumps)
+        return web.json_response(response, dumps=self.ballcone.json_dumps)
 
     @aiohttp_jinja2.template('sql.html')
     async def sql(self, request: web.Request):
@@ -106,11 +106,11 @@ class WebBalcone:
 
         if sql:
             try:
-                result = self.balcone.dao.run(sql)
+                result = self.ballcone.dao.run(sql)
             except monetdblite.exceptions.DatabaseError as e:
                 error = str(e)
 
-        services = self.balcone.dao.tables()
+        services = self.ballcone.dao.tables()
 
         return {
             'version': __version__,
@@ -124,7 +124,7 @@ class WebBalcone:
 
     @aiohttp_jinja2.template('nginx.html')
     async def nginx(self, request: web.Request):
-        services = self.balcone.dao.tables()
+        services = self.ballcone.dao.tables()
 
         service = request.query.get('service')
 
@@ -138,14 +138,14 @@ class WebBalcone:
 
         error = []
 
-        if not self.balcone.check_service(service, should_exist=False):
-            error.append(f'Invalid service name: {self.balcone.json_dumps(service)}, '
+        if not self.ballcone.check_service(service, should_exist=False):
+            error.append(f'Invalid service name: {self.ballcone.json_dumps(service)}, '
                          f'must match /{VALID_SERVICE.pattern}/')
 
         try:
             ip_address(ip)
         except ValueError:
-            error.append(f'Invalid Balcone IP address: {self.balcone.json_dumps(ip)}')
+            error.append(f'Invalid Ballcone IP address: {self.ballcone.json_dumps(ip)}')
 
         return {
             'version': __version__,

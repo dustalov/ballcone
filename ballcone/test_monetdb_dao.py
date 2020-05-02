@@ -6,7 +6,7 @@ from typing import cast
 
 import monetdblite
 
-from balcone.monetdb_dao import MonetDAO, Entry, smallint
+from ballcone.monetdb_dao import MonetDAO, Entry, smallint
 
 
 class TestMonetDAO(unittest.TestCase):
