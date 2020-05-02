@@ -11,7 +11,7 @@
             </div>
         </div>
         <div class="field">
-            <label class="label" for="ip">Balcone IP</label>
+            <label class="label" for="ip">Ballcone IP</label>
             <div class="control">
                 <input name="ip" id="ip" class="input" type="text" placeholder="127.0.0.1"
                        value="{{ ip }}">
@@ -38,7 +38,7 @@
     <div class="control">
         <textarea id="configuration" class="textarea is-family-monospace" rows="19" readonly>
 # Put this before the `server` block
-log_format balcone_json_{{ service }} escape=json
+log_format ballcone_json_{{ service }} escape=json
     '{'
     '"service": "{{ service }}", '
     '"ip": "$remote_addr", '
@@ -54,7 +54,7 @@ log_format balcone_json_{{ service }} escape=json
     '}';
 
     # Put this inside the `server` block
-    access_log syslog:server={{ ip }}:65140 balcone_json_{{ service }};</textarea>
+    access_log syslog:server={{ ip }}:65140 ballcone_json_{{ service }};</textarea>
     </div>
 </div>
 <div class="field is-grouped">
