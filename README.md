@@ -9,6 +9,12 @@ Ballcone is a fast and lightweight server-side Web analytics solution. It requir
 [docker_hub_badge]: https://img.shields.io/docker/pulls/dustalov/ballcone
 [docker_hub_link]: https://hub.docker.com/r/dustalov/ballcone
 
+## Screenshots
+
+![Ballcone](https://user-images.githubusercontent.com/40397/80874920-4c9b9f00-8cc3-11ea-9848-18384d826e9c.png)
+
+![Ballcone: petrovich](https://user-images.githubusercontent.com/40397/80874963-4f968f80-8cc3-11ea-8342-666fe3be139c.png)
+
 ## Design Goals
 
 * **Simplicity.** Ballcone requires *almost* zero set-up as it prefers convention over configuration
@@ -53,7 +59,7 @@ docker run --rm -p '127.0.0.1:8888:80' -p '127.0.0.1:8080:8080' dustalov/ballcon
 
 First, it is the romanization of the Russian word *балкон* that means a [balcony](https://en.wikipedia.org/wiki/Balcony). You go to the balcony to breath some fresh air and look down at the things outside.
 
-Second, if a ball is inscribed in a cone, it resembles the all-seeing eye (see low-relevant schematic below; [CC BY-SA 4.0](https://commons.wikimedia.org/wiki/File:01-Dreieck,_gleichseitig-2.svg)).
+Second, if a *ball* is inscribed in a *cone*, it resembles the all-seeing eye (see low-relevant schematic below; [CC BY-SA 4.0](https://commons.wikimedia.org/wiki/File:01-Dreieck,_gleichseitig-2.svg)).
 
 [![Equilateral triangle](https://upload.wikimedia.org/wikipedia/commons/9/98/01-Dreieck%2C_gleichseitig-2.svg)](https://commons.wikimedia.org/wiki/File:01-Dreieck,_gleichseitig-2.svg)
 
