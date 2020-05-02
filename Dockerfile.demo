@@ -1,4 +1,4 @@
-FROM balcone
+FROM dustalov/balcone
 
 MAINTAINER Dmitry Ustalov <dmitry.ustalov@gmail.com>
 
