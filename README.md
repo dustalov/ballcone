@@ -17,7 +17,7 @@ Ballcone is a fast and lightweight server-side Web analytics solution. It requir
 
 ## Architecture
 
-Ballcone captures the `access_log` entries exported in JSON by nginx via the bundled [syslog protocol](https://nginx.org/en/docs/syslog.html) (`65140/udp`). These entries are stored in the embedded MonetDBLite database. Ballcone uses it to perform data manipulation and analytic queries. Also, Ballcone provides a convenient Web interface (`8080/tcp`) for accessing and observing the gathered data.
+Ballcone captures the `access_log` entries exported in JSON by nginx via the bundled [syslog logger](https://nginx.org/en/docs/syslog.html) (`65140/udp`). These entries are stored in the embedded MonetDBLite database. Ballcone uses it to perform data manipulation and analytic queries. Also, Ballcone provides a convenient Web interface (`8080/tcp`) for accessing and observing the gathered data.
 
 ```
           +-----------+            +------------+
@@ -53,7 +53,7 @@ docker run --rm -p '127.0.0.1:8888:80' -p '127.0.0.1:8080:8080' dustalov/ballcon
 
 First, it is the romanization of the Russian word *балкон* that means a [balcony](https://en.wikipedia.org/wiki/Balcony). You go to the balcony to breath some fresh air and look down at the things outside.
 
-Second, if a ball is inscribed in a cone, it resembles all-seeing eye appears (see low-relevant schematic below; CC BY-SA).
+Second, if a ball is inscribed in a cone, it resembles the all-seeing eye (see low-relevant schematic below; [CC BY-SA 4.0](https://commons.wikimedia.org/wiki/File:01-Dreieck,_gleichseitig-2.svg)).
 
 [![Equilateral triangle](https://upload.wikimedia.org/wikipedia/commons/9/98/01-Dreieck%2C_gleichseitig-2.svg)](https://commons.wikimedia.org/wiki/File:01-Dreieck,_gleichseitig-2.svg)
 
@@ -79,7 +79,7 @@ Then it can either be configured as a [systemd](https://systemd.io/) service, se
 
 ### Configuring nginx
 
-You need to define the JSON-compatible log format for your service in the nginx configuration file. Let us call it `ballcone_json_example`. This format is similar to the one used in Matomo (see [matomo-log-analytics](https://github.com/matomo-org/matomo-log-analytics)). It should be put *before* the `server` block.
+You need to define the JSON-compatible log format for your service in the nginx configuration file. Let us call it `ballcone_json_example`. This format is similar to the one used in Matomo (see [matomo-log-analytics](https://github.com/matomo-org/matomo-log-analytics)). It should be put *before* the `server` context.
 
 ```Nginx
 log_format ballcone_json_example escape=json
@@ -98,7 +98,7 @@ log_format ballcone_json_example escape=json
     '}';
 ```
 
-Then, you should put this `access_log` directive *inside* the `server` block to transfer logs via the [syslog protocol](https://nginx.org/en/docs/syslog.html).
+Then, you should put this `access_log` directive *inside* the `server` context to transfer logs via the [syslog protocol](https://nginx.org/en/docs/syslog.html).
 
 ```Nginx
 access_log syslog:server=127.0.0.1:65140 ballcone_json_example;
