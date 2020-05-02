@@ -48,10 +48,10 @@ Then it can be either runned manually (`balcone` without arguments will create t
 
 ### Configuring nginx
 
-You need to define in the nginx configuration file the JSON-compatible log format for your service. Let us call it `balcone_json_petrovich`. This block is similar to the one used in Matomo (see [matomo-log-analytics](https://github.com/matomo-org/matomo-log-analytics)). It should be put *before* the `server` block.
+You need to define in the nginx configuration file the JSON-compatible log format for your service. Let us call it `balcone_json_example`. This block is similar to the one used in Matomo (see [matomo-log-analytics](https://github.com/matomo-org/matomo-log-analytics)). It should be put *before* the `server` block.
 
 ```Nginx
-log_format balcone_json_petrovich escape=json
+log_format balcone_json_example escape=json
     '{'
     '"service": "example", '
     '"ip": "$remote_addr", '
@@ -70,14 +70,14 @@ log_format balcone_json_petrovich escape=json
 Then, you should put this `access_log` directive inside the `server` block to transfer logs via the [syslog protocol](https://nginx.org/en/docs/syslog.html).
 
 ```Nginx
-access_log syslog:server=127.0.0.1:65140 balcone_json_petrovich;
+access_log syslog:server=127.0.0.1:65140 balcone_json_example;
 ```
 
 Please look at the complete example of nginx configuration in [demo/nginx.conf](demo/nginx.conf).
 
 ## Roadmap
 
-* Support more versions of Python (requires no effort as soon as MonetDB/MonetDBLite-Python#46 is fixed)
+* Support more versions of Python (requires no effort as soon as [MonetDBLite-Python#46](https://github.com/MonetDB/MonetDBLite-Python/issues/46) is fixed)
 * Switch to [DuckDB](https://github.com/cwida/duckdb) (as soon as sparse tables are supported)
 
 ## Alternatives
