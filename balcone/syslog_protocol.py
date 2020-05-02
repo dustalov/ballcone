@@ -4,7 +4,7 @@ import asyncio
 import logging
 import re
 from collections import deque
-from datetime import datetime
+from datetime import datetime, timezone
 from ipaddress import ip_address
 from typing import cast, Tuple, Union, Optional
 
@@ -62,23 +62,22 @@ class SyslogProtocol(asyncio.DatagramProtocol):
 
             self.balcone.queue[service] = deque()
 
-        current_datetime = datetime.utcnow()
-        current_date = current_datetime.date()
+        current_datetime = datetime.fromisoformat(content['date']).astimezone(timezone.utc)
 
-        user_agent = httpagentparser.detect(content['http_user_agent'])
+        user_agent = httpagentparser.detect(content['user_agent'])
 
         entry = Entry(
             datetime=current_datetime,
-            date=current_date,
+            date=current_datetime.date(),
             host=content['host'],
-            method=content['request_method'],
-            path=content['uri'],
+            method=content['method'],
+            path=content['path'],
             status=cast(smallint, int(content['status'])),
-            length=int(content['body_bytes_sent']),
-            generation_time=float(content['request_time']),
-            referer=content['http_referrer'],
-            ip=ip_address(content['remote_addr']),
-            country_iso_code=Balcone.iso_code(self.balcone.geoip, content['remote_addr']),
+            length=int(content['length']),
+            generation_time=float(content['generation_time_milli']),
+            referer=content['referrer'],
+            ip=ip_address(content['ip']),
+            country_iso_code=Balcone.iso_code(self.balcone.geoip, content['ip']),
             platform_name=user_agent.get('platform', {}).get('name', None),
             platform_version=user_agent.get('platform', {}).get('version', None),
             browser_name=user_agent.get('browser', {}).get('name', None),
