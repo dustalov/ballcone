@@ -9,23 +9,42 @@ Balcone is a fast and lightweight server-side Web analytics solution.
 [docker_hub_badge]: https://img.shields.io/docker/pulls/dustalov/balcone
 [docker_hub_link]: https://hub.docker.com/r/dustalov/balcone
 
+## Design Goals
+
+* **Simplicity.** Balcone requires *almost* zero set-up as it prefers convention over configuration
+* **Efficiency.** Balcone performs lightning-fast analytic queries over data thanks to the underlying *columnar database*
+* **Specificity.** Balcone aims at providing visual insights on the HTTP access logs with no bloat
+
+## Architecture
+
+Balcone captures the `access_log` entries exported in JSON by nginx via the bundlded [syslog protocol](https://nginx.org/en/docs/syslog.html) (`65140/udp`). These entries are stored in the embedded MonetDBLite database that Balcone uses to perform data manipulation and analytic queries. Also, Balcone provides a convenient Web interface (`8080/tcp`) for accessing and observing the gathered data.
+
+```
+          +-----------+            +-----------+
+   HTTP   |           |   syslog   |           |   HTTP
+<-------->+   nginx   +----------->+  Balcone  +<-------->
+          |           |    JSON    |           |
+          +-----------+            +-----------+
+                                   |MonetDBLite|
+                                   +-----------+
+```
+
+For better performance, Balcone inserts data in batches, committing them to MonetDBLite every few seconds (five seconds by default).
+
 ## Requirements
 
 * Python 3.6 or 3.7
-* [MonetDBLite](https://github.com/monetDB/MonetDBLite-Python), an embedded database
-
-## Design Goals
-
-* Almost zero-configuration needed (thanks to [syslog logger](https://nginx.org/en/docs/syslog.html) bundled in nginx &geq; 1.7.1)
-* Columnar data storage for lighting-fast analytic queries ([MonetDBLite](https://github.com/monetDB/MonetDBLite-Python) is currently used)
+* [MonetDBLite](https://github.com/monetDB/MonetDBLite-Python) 0.6.3
+* nginx &geq; 1.7.1
 
 ## Demo
 
-This repository contains an example configuration of nginx and Balcone. First, build the `balcone` Docker image locally and run the container using Docker Compose. nginx will be available at <http://localhost:8888/> and Balcone will be available at <http://localhost:8080/>.
+This repository contains an example configuration of nginx and Balcone. Just run the container from Docker Hub or build it locally. nginx will be available at <http://localhost:8888/> and Balcone will be available at <http://localhost:8080/>.
 
 ```shell
-make docker # docker build --rm -t balcone .
 docker-compose up
+# or
+docker run --rm -p '127.0.0.1:8888:80' -p '127.0.0.1:8080:8080' dustalov/balcone:demo
 ```
 
 ## Installation
@@ -67,7 +86,7 @@ log_format balcone_json_example escape=json
     '}';
 ```
 
-Then, you should put this `access_log` directive inside the `server` block to transfer logs via the [syslog protocol](https://nginx.org/en/docs/syslog.html).
+Then, you should put this `access_log` directive *inside* the `server` block to transfer logs via the [syslog protocol](https://nginx.org/en/docs/syslog.html).
 
 ```Nginx
 access_log syslog:server=127.0.0.1:65140 balcone_json_example;
@@ -77,8 +96,9 @@ Please look at the complete example of nginx configuration in [demo/nginx.conf](
 
 ## Roadmap
 
-* Support more versions of Python (requires no effort as soon as [MonetDBLite-Python#46](https://github.com/MonetDB/MonetDBLite-Python/issues/46) is fixed)
+* Support more versions of Python 3.6+ (requires no effort as soon as [MonetDBLite-Python#46](https://github.com/MonetDB/MonetDBLite-Python/issues/46) is fixed)
 * Switch to [DuckDB](https://github.com/cwida/duckdb) (as soon as sparse tables are supported)
+* Query string parsing for better insights
 
 ## Alternatives
 
