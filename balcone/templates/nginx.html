@@ -36,9 +36,8 @@
 <div class="field">
     <label class="label" for="configuration">Snippet for <code>nginx.conf</code></label>
     <div class="control">
-        <textarea id="configuration" class="textarea is-family-monospace" rows="20" readonly>
+        <textarea id="configuration" class="textarea is-family-monospace" rows="19" readonly>
 # Put this before the `server` block
-
 log_format balcone_json_{{ service }} escape=json
     '{'
     '"service": "{{ service }}", '
@@ -54,13 +53,13 @@ log_format balcone_json_{{ service }} escape=json
     '"date": "$time_iso8601"'
     '}';
 
-# Put this inside the `server` block
-access_log syslog:server={{ ip }}:65140 balcone_json_{{ service }};</textarea>
+    # Put this inside the `server` block
+    access_log syslog:server={{ ip }}:65140 balcone_json_{{ service }};</textarea>
     </div>
 </div>
 <div class="field is-grouped">
     <div class="control">
-        <a id="copy" class="button is-success is-light">Copy</a>
+        <a id="copy" class="button is-success is-light" accesskey="c">Copy</a>
     </div>
 </div>
 <script>
