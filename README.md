@@ -21,6 +21,12 @@ Ballcone is a fast and lightweight server-side Web analytics solution. It requir
 * **Efficiency.** Ballcone performs *lightning-fast analytic queries* over data thanks to the underlying columnar database
 * **Specificity.** Ballcone aims at providing visual insights on the HTTP access logs with *no bloat*
 
+## Features
+
+* No JavaScript snippets required
+* GeoIP mapping with the [GeoLite2](https://dev.maxmind.com/geoip/geoip2/geolite2/) database
+* Extraction of platform and browser information from User-Agent
+
 ## Architecture
 
 Ballcone captures the `access_log` entries exported in JSON by nginx via the bundled [syslog logger](https://nginx.org/en/docs/syslog.html) (`65140/udp`). These entries are stored in the embedded MonetDBLite database. Ballcone uses it to perform data manipulation and analytic queries. Also, Ballcone provides a convenient Web interface (`8080/tcp`) for accessing and observing the gathered data.
