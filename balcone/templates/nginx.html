@@ -36,27 +36,26 @@
 <div class="field">
     <label class="label" for="configuration">Snippet for <code>nginx.conf</code></label>
     <div class="control">
-        <textarea id="configuration" class="textarea is-family-monospace" rows="21" readonly>
+        <textarea id="configuration" class="textarea is-family-monospace" rows="20" readonly>
+# Put this before the `server` block
+
 log_format balcone_json_{{ service }} escape=json
     '{'
     '"service": "{{ service }}", '
-    '"args": "$args", '
-    '"body_bytes_sent": "$body_bytes_sent", '
-    '"content_length": "$content_length", '
-    '"content_type": "$content_type", '
+    '"ip": "$remote_addr", '
     '"host": "$host", '
-    '"http_referrer": "$http_referrer", '
-    '"http_user_agent": "$http_user_agent", '
-    '"http_x_forwarded_for": "$http_x_forwarded_for", '
-    '"remote_addr": "$remote_addr", '
-    '"request_method": "$request_method", '
-    '"request_time": "$request_time", '
+    '"method": "$request_method", '
+    '"path": "$request_uri", '
     '"status": "$status", '
-    '"upstream_addr": "$upstream_addr", '
-    '"uri": "$uri"'
+    '"referrer": "$http_referer", '
+    '"user_agent": "$http_user_agent", '
+    '"length": $bytes_sent, '
+    '"generation_time_milli": $request_time, '
+    '"date": "$time_iso8601"'
     '}';
 
-    access_log syslog:server={{ ip }}:65140 balcone_json_{{ service }};</textarea>
+# Put this inside the `server` block
+access_log syslog:server={{ ip }}:65140 balcone_json_{{ service }};</textarea>
     </div>
 </div>
 <div class="field is-grouped">
