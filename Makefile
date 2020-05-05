@@ -8,6 +8,14 @@ run: ballcone/__main__.py | .venv-installed
 pyinstaller: ballcone.spec | .venv-installed
 	nice venv/bin/pyinstaller $<
 
+install-systemd:
+	cp -Rvf dist/ballcone /usr/local/bin/ballcone
+	mkdir -pv /var/lib/ballcone
+	chown -Rv nobody:nobody /var/lib/ballcone
+	cp -Rvf ballcone.service /etc/systemd/system/
+	systemctl daemon-reload
+	systemctl enable ballcone
+
 test:
 	python3 -munittest discover
 
