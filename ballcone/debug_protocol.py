@@ -2,7 +2,7 @@ __author__ = 'Dmitry Ustalov'
 
 import asyncio
 import logging
-from typing import cast
+from typing import cast, List
 
 import monetdblite
 
@@ -29,7 +29,9 @@ class DebugProtocol(asyncio.Protocol):
             self.transport.close()
             return
 
-        result, error = [], ''
+        result: List[List] = []
+
+        error = None
 
         if sql:
             try:

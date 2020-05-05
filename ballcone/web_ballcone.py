@@ -102,12 +102,15 @@ class WebBallcone:
     @aiohttp_jinja2.template('sql.html')
     async def sql(self, request: web.Request):
         data = await request.post()
-        sql, result, error = str(data.get('sql', 'SELECT 1, 2, 3;')), [], ''
+
+        sql = str(data.get('sql', 'SELECT 1, 2, 3;'))
 
         if sql:
             try:
                 result = self.ballcone.dao.run(sql)
+                error = None
             except monetdblite.exceptions.DatabaseError as e:
+                result = []
                 error = str(e)
 
         services = self.ballcone.dao.tables()

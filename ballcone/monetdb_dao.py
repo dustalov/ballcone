@@ -97,7 +97,7 @@ class Entry(NamedTuple):
     is_robot: Optional[bool]
 
     @staticmethod
-    def from_values(entry: Tuple) -> 'Entry':
+    def from_values(entry: Sequence) -> 'Entry':
         return Entry(*(sql_value_to_python(name, annotation, value)
                        for (name, annotation), value in zip(Entry.__annotations__.items(), entry)))
 
@@ -261,12 +261,12 @@ class MonetDAO:
 
         query = self.apply_dates(query, target, start, stop)
 
-        rows = self.run(query)
+        rows = cast(List[Union[List, Entry]], self.run(query))
 
         for i, current in enumerate(rows):
-            rows[i] = Entry.from_values(current)
+            rows[i] = Entry.from_values(cast(List, current))
 
-        return rows
+        return cast(List[Entry], rows)
 
     def select_average(self, table: str, field: str, start: date = None, stop: date = None) -> AverageResult:
         target = Table(table, schema=self.schema)
@@ -355,7 +355,7 @@ class MonetDAO:
 
         return result
 
-    def run(self, query: Union[QueryBuilder, str]) -> List:
+    def run(self, query: Union[QueryBuilder, str]) -> List[List]:
         sql = str(query) if isinstance(query, QueryBuilder) else query
 
         logging.debug(sql)
