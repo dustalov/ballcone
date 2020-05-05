@@ -10,7 +10,7 @@ block_cipher = None
 
 a = Analysis(['ballcone/__main__.py'],
              binaries=[(libmonetdb5, 'monetdblite')],
-             datas=[(geolite2_city, '_maxminddb_geolite2')],
+             datas=[(geolite2_city, '_maxminddb_geolite2'), ('ballcone/templates', 'templates')],
              hiddenimports=[],
              hookspath=[],
              runtime_hooks=[],

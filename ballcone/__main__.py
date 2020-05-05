@@ -5,6 +5,7 @@ __author__ = 'Dmitry Ustalov'
 import argparse
 import asyncio
 import logging
+import os
 import sys
 from contextlib import suppress
 
@@ -62,8 +63,15 @@ def main():
                                host=args.debug_host, port=args.debug_port)
     loop.run_until_complete(debug)
 
+    # PyInstaller
+    if getattr(sys, 'frozen', False):
+        # noinspection PyProtectedMember
+        jinja2_loader = jinja2.FileSystemLoader(os.path.join(sys._MEIPASS, 'templates'))
+    else:
+        jinja2_loader = jinja2.PackageLoader('ballcone')
+
     app = web.Application()
-    aiohttp_jinja2.setup(app, loader=jinja2.PackageLoader('ballcone'))
+    aiohttp_jinja2.setup(app, loader=jinja2_loader)
     handler = WebBallcone(ballcone)
     app.router.add_get('/', handler.root, name='root')
     app.router.add_get('/services', handler.services, name='services')
