@@ -81,7 +81,7 @@ Running the Docker image is the simplest way to get started. Docker Hub performs
 docker run --init -p '127.0.0.1:8080:8080' -p '127.0.0.1:65140:65140/udp' -v '/var/lib/ballcone/monetdb:/usr/src/app/monetdb' --restart=unless-stopped dustalov/ballcone ballcone -sh '0.0.0.0' -wh '0.0.0.0'
 ```
 
-However, Docker is not the only option. Alternatively, Ballcone can be packaged into a standalone executable using [PyInstaller](http://www.pyinstaller.org/) and runned as a [systemd]([systemd](https://systemd.io/)) service (see [ballcone.service](ballcone.service) as an example):
+However, Docker is not the only option. Alternatively, Ballcone can be packaged into a standalone executable using [PyInstaller](http://www.pyinstaller.org/) and runned as a [systemd](https://systemd.io/) service (see [ballcone.service](ballcone.service) as an example):
 
 ```shell
 make pypackage
