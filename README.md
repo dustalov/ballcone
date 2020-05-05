@@ -81,13 +81,21 @@ Running the Docker image is the simplest way to get started. Docker Hub performs
 docker run --init -p '127.0.0.1:8080:8080' -p '127.0.0.1:65140:65140/udp' -v '/var/lib/ballcone/monetdb:/usr/src/app/monetdb' --restart=unless-stopped dustalov/ballcone ballcone -sh '0.0.0.0' -wh '0.0.0.0'
 ```
 
-However, Docker is not the only option. Alternatively, Ballcone can be installed directly on the host machine:
+However, Docker is not the only option. Alternatively, Ballcone can be packaged into a standalone executable using [PyInstaller](http://www.pyinstaller.org/) and runned as a [systemd]([systemd](https://systemd.io/)) service (see [ballcone.service](ballcone.service) as an example):
+
+```shell
+make pypackage
+sudo make install-systemd
+sudo systemctl start ballcone
+```
+
+Finally, Ballcone can be installed directly on the host machine for manual runs:
 
 ```shell
 pip3 install -e git+https://github.com/dustalov/ballcone@master#egg=ballcone
 ```
 
-Then it can either be configured as a [systemd](https://systemd.io/) service, see [ballcone.service](ballcone.service) as an example, or it can be runned manually (`ballcone` without arguments will create the `monetdb` directory inside the current directory).
+Note that `ballcone` without arguments creates the `monetdb` directory inside the current directory.
 
 ### Configuring nginx
 
