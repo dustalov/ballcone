@@ -2,8 +2,11 @@ export LANG := en_US.UTF-8
 
 -include Makefile.local
 
-run: .venv-installed
-	nice venv/bin/ballcone
+run: ballcone/__main__.py | .venv-installed
+	PYTHONPATH=$(CURDIR) nice venv/bin/python3 $<
+
+pyinstaller: ballcone.spec | .venv-installed
+	nice venv/bin/pyinstaller $<
 
 test:
 	python3 -munittest discover
@@ -14,9 +17,10 @@ mypy:
 docker:
 	docker build --rm -t ballcone .
 
-.venv-installed: requirements.txt
+.venv-installed: requirements.txt requirements-dev.txt
 	python3 -mvenv venv
 	venv/bin/python3 -mpip install -U pip
-	venv/bin/pip3 install -r $<
+	venv/bin/pip3 install -r requirements.txt
+	venv/bin/pip3 install -r requirements-dev.txt
 	venv/bin/pip3 --version
-	venv/bin/python3 setup.py install > $@
+	venv/bin/pip3 list > $@
