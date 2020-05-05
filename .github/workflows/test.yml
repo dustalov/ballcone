@@ -38,3 +38,6 @@ jobs:
     - name: Test with unittest
       run: |
         python3 -munittest discover
+    - name: Build with PyInstaller
+      run: |
+        pyinstaller ballcone.spec
