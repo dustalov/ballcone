@@ -17,7 +17,6 @@ from geolite2 import geolite2
 
 from ballcone import __version__
 from ballcone.core import Ballcone
-from ballcone.debug_protocol import DebugProtocol
 from ballcone.monetdb_dao import MonetDAO
 from ballcone.syslog_protocol import SyslogProtocol
 from ballcone.web_ballcone import WebBallcone
@@ -28,8 +27,6 @@ def main():
     parser.add_argument('-v', '--version', action='version', version=f'Ballcone v{__version__}')
     parser.add_argument('-sh', '--syslog-host', default='127.0.0.1', help='syslog host to bind')
     parser.add_argument('-sp', '--syslog-port', default=65140, type=int, help='syslog UDP port to bind')
-    parser.add_argument('-dh', '--debug-host', default='127.0.0.1', help='SQL debug host to bind')
-    parser.add_argument('-dp', '--debug-port', default=65141, type=int, help='SQL debug TCP port to bind')
     parser.add_argument('-wh', '--web-host', default='127.0.0.1', help='Web interface host to bind')
     parser.add_argument('-wp', '--web-port', default=8080, type=int, help='Web interface TCP port to bind')
     parser.add_argument('-m', '--monetdb', default='monetdb', help='Path to MonetDB database')
@@ -58,10 +55,6 @@ def main():
     syslog = loop.create_datagram_endpoint(lambda: SyslogProtocol(ballcone),
                                            local_addr=(args.syslog_host, args.syslog_port))
     loop.run_until_complete(syslog)
-
-    debug = loop.create_server(lambda: DebugProtocol(ballcone),
-                               host=args.debug_host, port=args.debug_port)
-    loop.run_until_complete(debug)
 
     # PyInstaller
     if getattr(sys, 'frozen', False):

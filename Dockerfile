@@ -2,7 +2,7 @@ FROM python:3.7
 
 MAINTAINER Dmitry Ustalov <dmitry.ustalov@gmail.com>
 
-EXPOSE 65140/udp 65141/tcp 8080/tcp
+EXPOSE 65140/udp 8080/tcp
 
 COPY . /usr/src/app
 
