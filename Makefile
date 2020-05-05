@@ -16,6 +16,7 @@ docker:
 
 .venv-installed: requirements.txt
 	python3 -mvenv venv
+	venv/bin/python3 -mpip install -U pip
 	venv/bin/pip3 install -r $<
 	venv/bin/pip3 --version
 	venv/bin/python3 setup.py install > $@
