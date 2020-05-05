@@ -120,9 +120,7 @@ Please look at the complete example of nginx configuration in [demo/nginx.conf](
 
 ## Roadmap
 
-* Support more versions of Python 3.6+ (requires no effort as soon as [MonetDBLite-Python#46](https://github.com/MonetDB/MonetDBLite-Python/issues/46) is fixed)
-* Switch to [DuckDB](https://github.com/cwida/duckdb) (as soon as sparse tables are supported)
-* Query string parsing for better insights
+Roadmap is available at <https://github.com/dustalov/ballcone/issues>.
 
 ## Alternatives
 
