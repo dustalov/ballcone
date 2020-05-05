@@ -41,3 +41,4 @@ jobs:
     - name: Build with PyInstaller
       run: |
         pyinstaller ballcone.spec
+        dist/ballcone --version
