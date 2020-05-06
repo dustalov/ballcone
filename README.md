@@ -65,9 +65,7 @@ docker run --rm -p '127.0.0.1:8888:80' -p '127.0.0.1:8080:8080' dustalov/ballcon
 
 First, it is the romanization of the Russian word *балкон* that means a [balcony](https://en.wikipedia.org/wiki/Balcony). You go to the balcony to breath some fresh air and look down at the things outside.
 
-Second, if a *ball* is inscribed in a *cone*, it resembles the all-seeing eye (help wanted, see https://github.com/dustalov/ballcone/issues/8 and the sketch below).
-
-![A ball inscribed in a cone](https://user-images.githubusercontent.com/40397/81222777-80d9cd00-8fed-11ea-800b-cb0ad6e28183.png)
+Second, if a *ball* is inscribed in a *cone*, it resembles the all-seeing eye (help wanted: [dustalov/ballcone#8](https://github.com/dustalov/ballcone/issues/8)).
 
 Regardless of the meaning you prefer, Ballcone helps you to watch your websites.
 
