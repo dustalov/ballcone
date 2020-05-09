@@ -76,7 +76,7 @@ Regardless of the meaning you prefer, Ballcone helps you to watch your websites.
 Running the Docker image is the simplest way to get started. Docker Hub performs automated builds of the Ballcone source code from GitHub: <https://hub.docker.com/r/dustalov/ballcone>. The following command runs Ballcone on `127.0.0.1`: the syslog protocol will be available via `65140/udp`, the Web interface will be available via `8080/tcp`, and the data will be stored in the `/var/lib/ballcone` directory on the host machine.
 
 ```shell
-docker run --init -p '127.0.0.1:8080:8080' -p '127.0.0.1:65140:65140/udp' -v '/var/lib/ballcone/monetdb:/usr/src/app/monetdb' --restart=unless-stopped dustalov/ballcone ballcone -sh '0.0.0.0' -wh '0.0.0.0'
+docker run -p '127.0.0.1:8080:8080' -p '127.0.0.1:65140:65140/udp' -v '/var/lib/ballcone/monetdb:/usr/src/app/monetdb' --restart=unless-stopped dustalov/ballcone ballcone -sh '0.0.0.0' -wh '0.0.0.0'
 ```
 
 However, Docker is not the only option. Alternatively, Ballcone can be packaged into a standalone executable using [PyInstaller](http://www.pyinstaller.org/) and runned as a [systemd](https://systemd.io/) service (see [ballcone.service](ballcone.service) as an example):
