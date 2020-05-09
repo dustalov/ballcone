@@ -54,7 +54,7 @@ log_format ballcone_json_{{ service }} escape=json
     '}';
 
     # Put this inside the `server` context
-    access_log syslog:server={{ ip }}:65140 ballcone_json_{{ service }};</textarea>
+    access_log syslog:server={% if ip_version == 6 %}[{% endif %}{{ ip }}{% if ip_version == 6 %}]{% endif %}:65140 ballcone_json_{{ service }};</textarea>
     </div>
 </div>
 <div class="field is-grouped">

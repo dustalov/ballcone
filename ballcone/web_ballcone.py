@@ -146,9 +146,10 @@ class WebBallcone:
                          f'must match /{VALID_SERVICE.pattern}/')
 
         try:
-            ip_address(ip)
+            ip_version = ip_address(ip).version
         except ValueError:
             error.append(f'Invalid Ballcone IP address: {self.ballcone.json_dumps(ip)}')
+            ip_version = None
 
         return {
             'version': __version__,
@@ -157,5 +158,6 @@ class WebBallcone:
             'services': services,
             'service': service,
             'ip': ip,
+            'ip_version': ip_version,
             'error': error
         }
