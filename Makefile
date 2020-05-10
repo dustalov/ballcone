@@ -14,7 +14,8 @@ install-systemd:
 	chown -Rv nobody:nobody /var/lib/ballcone
 	cp -Rvf ballcone.service /etc/systemd/system/
 	systemctl daemon-reload
-	systemctl enable --now ballcone
+	systemctl enable ballcone
+	systemctl restart ballcone
 
 test:
 	python3 -munittest discover
