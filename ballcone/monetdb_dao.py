@@ -331,6 +331,7 @@ class MonetDAO:
                            ascending: bool = True, limit: Optional[int] = None) -> CountResult:
         target = Table(table, schema=self.schema)
         count_field = fn.Count(Field(field, table=target) if field else target.date, alias='count')
+        order = Order.asc if ascending else Order.desc
 
         if distinct:
             count_field = count_field.distinct()
@@ -339,19 +340,18 @@ class MonetDAO:
 
         query = Query.from_(target).select(target.date, group_field.as_('group'), count_field). \
             groupby(target.date, group_field).orderby(target.date). \
-            orderby(count_field, order=Order.asc if ascending else Order.desc). \
-            orderby(group_field)
+            orderby(count_field, order=order).orderby(group_field)
 
         query = self.apply_dates(query, target, start, stop)
 
         if limit is not None:
             window = Query.from_(query).select(query.date, query.group, query.count,
-                                               an.RowNumber(alias='row_number').over(query.date))
+                                               an.RowNumber(alias='row_number').over(query.date).
+                                               orderby(query.count, order=order).orderby(query.group))
 
             query = Query.from_(window).select(window.date, window.group, window.count). \
                 where(window.row_number <= limit).orderby(window.date). \
-                orderby(window.count, order=Order.asc if ascending else Order.desc). \
-                orderby(window.group)
+                orderby(window.count, order=order).orderby(window.group)
 
         result = CountResult(table=table, field=field, distinct=distinct, group=group, ascending=ascending,
                              elements=[])
