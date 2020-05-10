@@ -165,7 +165,7 @@ class MonetDAO:
             storage.columnsize + storage.heapsize + storage.hashes + storage.imprints + storage.orderidx
         ))
 
-        return self.run(query)[0][0]
+        return int(self.run(query)[0][0])
 
     def create_schema(self):
         # MonetDB does not support DROP SCHEMA: https://www.monetdb.org/Documentation/SQLreference/Schema

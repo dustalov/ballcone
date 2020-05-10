@@ -55,7 +55,7 @@ class TestMonetDAO(unittest.TestCase):
         self.db.close()
 
     def test_database_size(self):
-        self.assertGreater(0, self.dao.size())
+        self.assertLess(0, self.dao.size())
 
     def test_schema_exists(self):
         self.assertTrue(self.dao.schema_exists())
