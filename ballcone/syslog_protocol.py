@@ -3,6 +3,7 @@ __author__ = 'Dmitry Ustalov'
 import asyncio
 import logging
 import re
+import urllib.parse
 from collections import deque
 from datetime import timezone
 from ipaddress import ip_address
@@ -65,6 +66,8 @@ class SyslogProtocol(asyncio.DatagramProtocol):
 
         current_datetime = dateutil.parser.isoparse(content['date']).astimezone(timezone.utc)
 
+        path = urllib.parse.unquote(content['path'])
+
         user_agent = httpagentparser.detect(content['user_agent'])
 
         entry = Entry(
@@ -72,7 +75,7 @@ class SyslogProtocol(asyncio.DatagramProtocol):
             date=current_datetime.date(),
             host=content['host'],
             method=content['method'],
-            path=content['path'],
+            path=path,
             status=cast(smallint, int(content['status'])),
             length=int(content['length']),
             generation_time=float(content['generation_time_milli']),
