@@ -5,7 +5,6 @@ from calendar import timegm
 from contextlib import contextmanager
 from datetime import datetime, date
 from ipaddress import ip_address, IPv4Address, IPv6Address
-from pathlib import Path
 from typing import Generator, NamedTuple, Optional, List, Sequence, Union, Any, NewType, Tuple, Deque, Set, cast
 
 import monetdblite
@@ -157,6 +156,16 @@ class MonetDAO:
     def __init__(self, db: monetdblite.Connection, schema: str):
         self.db = db
         self.schema = schema
+
+    def size(self) -> int:
+        # https://www.monetdb.org/Documentation/SQLcatalog/ColumnStorage
+        storage = Table('storage', schema='sys')
+
+        query = Query.from_(storage).select(fn.Sum(
+            storage.columnsize + storage.heapsize + storage.hashes + storage.imprints + storage.orderidx
+        ))
+
+        return self.run(query)[0][0]
 
     def create_schema(self):
         # MonetDB does not support DROP SCHEMA: https://www.monetdb.org/Documentation/SQLreference/Schema
@@ -365,14 +374,6 @@ class MonetDAO:
             cursor.execute(sql)
 
             return cursor.fetchall()
-
-    def size(self) -> Optional[int]:
-        path = monetdblite.connections.MONETDBLITE_CURRENT_DATABASE
-
-        if not path or path == ':memory:':
-            return None
-
-        return sum(f.stat().st_size for f in Path(path).glob('**/*') if f.is_file())
 
     @staticmethod
     def apply_dates(query: QueryBuilder, target: Table,

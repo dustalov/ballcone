@@ -55,8 +55,7 @@ class TestMonetDAO(unittest.TestCase):
         self.db.close()
 
     def test_database_size(self):
-        # should be None because in-memory database is used
-        self.assertIsNone(self.dao.size())
+        self.assertGreater(0, self.dao.size())
 
     def test_schema_exists(self):
         self.assertTrue(self.dao.schema_exists())

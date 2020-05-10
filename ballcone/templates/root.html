@@ -41,10 +41,6 @@ $(document).ready(function() {
 {% endfor %}
 <div class="content">
     <p>If you see nothing, <a href="{{ url('nginx') }}">start configuring</a> your nginx.</p>
-    {% if size %}
     <p>MonetDBLite consumed {{ size }} byte{% if size != 1 %}s{% endif %} of disk space.</p>
-    {% else %}
-    <p>In-memory database is used.</p>
-    {% endif %}
 </div>
 {% endblock %}
