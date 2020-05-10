@@ -5,6 +5,7 @@ __pycache__
 db
 build
 dist
+.DS_Store
 monetdb
 balcone.db*
 venv
