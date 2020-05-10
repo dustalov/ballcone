@@ -52,24 +52,26 @@
         </div>
     </div>
     <h2 class="subtitle">Most Popular Paths</h2>
-    <table class="table is-hoverable is-fullwidth">
-        <thead>
-        <tr>
-            <th>Date</th>
-            <th>Path</th>
-            <th>Visits</th>
-        </tr>
-        </thead>
-        <tbody>
-        {% for element in paths.elements %}
-        <tr>
-            <td>{{ element.date }}</td>
-            <td>{{ element.group }}</td>
-            <td>{{ element.count }}</td>
-        </tr>
-        {% endfor %}
-        </tbody>
-    </table>
+    <div class="table-container">
+        <table class="table is-hoverable is-fullwidth">
+            <thead>
+            <tr>
+                <th>Date</th>
+                <th>Path</th>
+                <th>Visits</th>
+            </tr>
+            </thead>
+            <tbody>
+            {% for element in paths.elements %}
+            <tr>
+                <td>{{ element.date }}</td>
+                <td>{{ element.group }}</td>
+                <td>{{ element.count }}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
     <h2 class="subtitle">Most Popular Browsers</h2>
     <table class="table is-hoverable is-fullwidth">
         <thead>
