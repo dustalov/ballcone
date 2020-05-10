@@ -2,8 +2,10 @@ __author__ = 'Dmitry Ustalov'
 
 from collections import OrderedDict
 from datetime import date, datetime, timedelta
+from functools import lru_cache
 from ipaddress import ip_address
-from typing import Dict
+from time import time
+from typing import Dict, Optional
 
 import aiohttp_jinja2
 import monetdblite
@@ -34,6 +36,7 @@ class WebBallcone:
 
         return {
             'version': __version__,
+            'size': self.database_size(get_ttl_hash()),
             'current_page': 'root',
             'services': services,
             'dashboard': dashboard
@@ -161,3 +164,11 @@ class WebBallcone:
             'ip_version': ip_version,
             'error': error
         }
+
+    @lru_cache()
+    def database_size(self, ttl_hash: Optional[int] = None) -> Optional[int]:
+        return self.ballcone.dao.size()
+
+
+def get_ttl_hash(seconds: int = 300) -> int:
+    return round(time() / seconds)
