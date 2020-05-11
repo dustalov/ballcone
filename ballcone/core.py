@@ -3,9 +3,9 @@ __author__ = 'Dmitry Ustalov'
 import asyncio
 import logging
 import re
-from datetime import date
+from datetime import datetime, date, timedelta
 from ipaddress import IPv4Address, IPv6Address
-from typing import Optional, Dict, Deque, Any
+from typing import Optional, Dict, Deque, Tuple, Any
 
 import simplejson
 from geolite2 import maxminddb
@@ -69,3 +69,11 @@ class Ballcone:
         geo = geoip.get(ip)
 
         return geo['country'].get('iso_code', None) if geo and 'country' in geo else None
+
+    @staticmethod
+    def days_before(stop_date: Optional[date] = None, days: int = 30) -> Tuple[date, date]:
+        stop = stop_date if stop_date else datetime.utcnow().date()
+
+        start = stop - timedelta(days=days - 1)
+
+        return start, stop

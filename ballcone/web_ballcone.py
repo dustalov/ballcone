@@ -1,7 +1,7 @@
 __author__ = 'Dmitry Ustalov'
 
 from collections import OrderedDict
-from datetime import date, datetime, timedelta
+from datetime import date, datetime
 from functools import lru_cache
 from ipaddress import ip_address
 from time import time
@@ -53,8 +53,7 @@ class WebBallcone:
         if not self.ballcone.check_service(service):
             raise web.HTTPNotFound(text=f'No such service: {service}')
 
-        stop = datetime.utcnow().date()
-        start = stop - timedelta(days=7 - 1)
+        start, stop = self.ballcone.days_before(days=7)
 
         queries = {
             'visits': self.ballcone.dao.select_count(service, start=start, stop=stop),
@@ -97,8 +96,7 @@ class WebBallcone:
         if not self.ballcone.check_service(service):
             raise web.HTTPNotFound(text=f'No such service: {service}')
 
-        stop = datetime.utcnow().date()
-        start = stop - timedelta(days=30 - 1)
+        start, stop = self.ballcone.days_before()
 
         if request.match_info.route.name == 'average':
             average_response = self.ballcone.dao.select_average(service, field=field, start=start, stop=stop)
@@ -118,8 +116,7 @@ class WebBallcone:
         ascending = bool(request.query.get('ascending', None))
         limit = int(request.query.get('limit', None))
 
-        stop = datetime.utcnow().date()
-        start = stop - timedelta(days=30 - 1)
+        start, stop = self.ballcone.days_before()
 
         response = self.ballcone.dao.select_count_group(service, field=field, group=group,
                                                         distinct=distinct, ascending=ascending, limit=limit,
