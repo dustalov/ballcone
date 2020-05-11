@@ -15,17 +15,6 @@ from .monetdb_dao import MonetDAO, Entry
 VALID_SERVICE = re.compile(r'\A[\w]+\Z')
 
 
-def isint(s: Optional[str]) -> bool:
-    if not s:
-        return False
-
-    try:
-        value = int(s)
-        return value != 0
-    except ValueError:
-        return False
-
-
 class BallconeJSONEncoder(simplejson.JSONEncoder):
     def default(self, obj: Any) -> str:
         if isinstance(obj, date):
