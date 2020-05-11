@@ -94,7 +94,7 @@
 </div>
 <script>
 $(document).ready(function() {
-    $.getJSON('{{ url('query', service=current_service, query='unique') }}',
+    $.getJSON('{{ url('count', service=current_service, field='ip') }}',
     makeCallback(new Chart($('#unique'), {
         type: 'bar',
         data: {
@@ -104,7 +104,7 @@ $(document).ready(function() {
             }]
         }
     }), 'count'));
-    $.getJSON('{{ url('query', service=current_service, query='time') }}',
+    $.getJSON('{{ url('average', service=current_service, field='generation_time') }}',
     makeCallback(new Chart($('#time'), {
         type: 'line',
         data: {

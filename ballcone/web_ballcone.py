@@ -5,7 +5,7 @@ from datetime import date, datetime, timedelta
 from functools import lru_cache
 from ipaddress import ip_address
 from time import time
-from typing import Dict, Optional
+from typing import Dict, Optional, List
 
 import aiohttp_jinja2
 import monetdblite
@@ -28,7 +28,7 @@ class WebBallcone:
         dashboard = []
 
         for service in services:
-            unique = self.ballcone.unique(service, today, today)
+            unique = self.ballcone.dao.select_count(service, 'ip', start=today, stop=today)
 
             dashboard.append((service, unique.elements[0].count if unique.elements else 0))
 
@@ -57,8 +57,8 @@ class WebBallcone:
         start = stop - timedelta(days=7 - 1)
 
         queries = {
-            'visits': self.ballcone.visits(service, start, stop),
-            'unique': self.ballcone.unique(service, start, stop)
+            'visits': self.ballcone.dao.select_count(service, start=start, stop=stop),
+            'unique': self.ballcone.dao.select_count(service, 'ip', start=start, stop=stop)
         }
 
         overview: Dict[date, Dict[str, int]] = OrderedDict()
@@ -70,11 +70,15 @@ class WebBallcone:
 
                 overview[element.date][query] = element.count
 
-        time = self.ballcone.time(service, start, stop)
+        limit = self.ballcone.unwrap_top_limit()
 
-        paths = self.ballcone.uri(service, start, stop, limit=self.ballcone.top_limit)
+        time = self.ballcone.dao.select_average(service, 'generation_time', start, stop)
 
-        browsers = self.ballcone.browser(service, start, stop, limit=self.ballcone.top_limit)
+        paths = self.ballcone.dao.select_count_group(service, 'ip', 'path', ascending=False, limit=limit,
+                                                     start=start, stop=stop)
+
+        browsers = self.ballcone.dao.select_count_group(service, 'ip', 'browser_name', ascending=False, limit=limit,
+                                                        start=start, stop=stop)
 
         return {
             'version': __version__,
@@ -87,8 +91,8 @@ class WebBallcone:
             'browsers': browsers
         }
 
-    async def query(self, request: web.Request):
-        service, command = request.match_info['service'], request.match_info['query']
+    async def average_or_count(self, request: web.Request):
+        service, field = request.match_info['service'], request.match_info['field']
 
         if not self.ballcone.check_service(service):
             raise web.HTTPNotFound(text=f'No such service: {service}')
@@ -96,9 +100,30 @@ class WebBallcone:
         stop = datetime.utcnow().date()
         start = stop - timedelta(days=30 - 1)
 
-        parameter = request.query.get('parameter', None)
+        if request.match_info.route.name == 'average':
+            average_response = self.ballcone.dao.select_average(service, field=field, start=start, stop=stop)
+            return web.json_response(average_response, dumps=self.ballcone.json_dumps)
+        else:
+            count_response = self.ballcone.dao.select_count(service, field=field, start=start, stop=stop)
+            return web.json_response(count_response, dumps=self.ballcone.json_dumps)
 
-        response = self.ballcone.handle_command(service, command, parameter, start, stop)
+    async def count_group(self, request: web.Request):
+        service, group = request.match_info['service'], request.match_info['group']
+
+        if not self.ballcone.check_service(service):
+            raise web.HTTPNotFound(text=f'No such service: {service}')
+
+        field = request.query.get('distinct', None)
+        distinct = bool(request.query.get('distinct', None))
+        ascending = bool(request.query.get('ascending', None))
+        limit = int(request.query.get('limit', None))
+
+        stop = datetime.utcnow().date()
+        start = stop - timedelta(days=30 - 1)
+
+        response = self.ballcone.dao.select_count_group(service, field=field, group=group,
+                                                        distinct=distinct, ascending=ascending, limit=limit,
+                                                        start=start, stop=stop)
 
         return web.json_response(response, dumps=self.ballcone.json_dumps)
 
@@ -106,14 +131,15 @@ class WebBallcone:
     async def sql(self, request: web.Request):
         data = await request.post()
 
-        sql = str(data.get('sql', 'SELECT 1, 2, 3;'))
+        sql = str(data.get('sql', f"SELECT '{self.ballcone.dao.schema}';"))
+
+        result: List = []
+        error: Optional[str] = None
 
         if sql:
             try:
                 result = self.ballcone.dao.run(sql)
-                error = None
             except monetdblite.exceptions.DatabaseError as e:
-                result = []
                 error = str(e)
 
         services = self.ballcone.dao.tables()
