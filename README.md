@@ -46,7 +46,7 @@ For better performance, Ballcone inserts data in batches, committing them to Mon
 ## Requirements
 
 * Python 3.6+
-* [MonetDBLite](https://github.com/monetDB/MonetDBLite-Python) 0.6.3
+* [MonetDBLite](https://github.com/monetDB/MonetDBLite-Python) 0.6.4
 * nginx &geq; 1.7.1
 
 ## Demo
