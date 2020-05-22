@@ -5,7 +5,7 @@ from typing import List
 from setuptools import setup
 
 
-def get_package_variable(name: str, rel_path='ballcone/__init__.py') -> str:
+def get_package_variable(name: str, rel_path: str = 'ballcone/__init__.py') -> str:
     path = os.path.join(os.path.abspath(os.path.dirname(__file__)), rel_path)
 
     pattern = re.compile(r'^{}.*?([\'"])(?P<value>.+)\1.*$'.format(re.escape(name)))
