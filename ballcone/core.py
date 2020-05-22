@@ -36,11 +36,11 @@ class Ballcone:
         self.queue: Dict[str, Deque[Entry]] = {}
         self.json_dumps = BallconeJSONEncoder().encode
 
-    async def persist_timer(self):
+    async def persist_timer(self) -> None:
         while await asyncio.sleep(self.persist_period, result=True):
             self.persist()
 
-    def persist(self):
+    def persist(self) -> None:
         for service, queue in self.queue.items():
             count = self.dao.batch_insert_into_from_deque(service, queue)
 

@@ -84,7 +84,7 @@ class TestMonetDAO(unittest.TestCase):
         self.seed(table, insert_entries=False)
         self.assertEqual(0, len(self.dao.select(table)))
 
-        self.dao.insert_into(table, self.ENTRIES[0])
+        t = self.dao.insert_into(table, self.ENTRIES[0])
         self.assertEqual(1, len(self.dao.select(table)))
 
     def test_batch_insert_into_and_select(self):

@@ -26,10 +26,10 @@ class SyslogProtocol(asyncio.DatagramProtocol):
         self.ballcone = ballcone
         self.transport: Optional[asyncio.BaseTransport] = None
 
-    def connection_made(self, transport: asyncio.BaseTransport):
+    def connection_made(self, transport: asyncio.BaseTransport) -> None:
         self.transport = transport
 
-    def datagram_received(self, data: Union[bytes, str], addr: Tuple[str, int]):
+    def datagram_received(self, data: Union[bytes, str], addr: Tuple[str, int]) -> None:
         try:
             message = data.decode('utf-8') if isinstance(data, bytes) else data
         except UnicodeDecodeError:

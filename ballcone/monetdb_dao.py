@@ -167,7 +167,7 @@ class MonetDAO:
 
         return int(self.run(query)[0][0])
 
-    def create_schema(self):
+    def create_schema(self) -> int:
         # MonetDB does not support DROP SCHEMA: https://www.monetdb.org/Documentation/SQLreference/Schema
         sql = f'CREATE SCHEMA {monet_identifier_escape(self.schema)}'
 
@@ -205,7 +205,7 @@ class MonetDAO:
 
         return len(self.run(query)) > 0
 
-    def create_table(self, table: str):
+    def create_table(self, table: str) -> int:
         target = Table(table, schema=self.schema)
 
         columns = [Column(name, python_type_to_sql(annotation)) for name, annotation in Entry.__annotations__.items()]
@@ -218,7 +218,7 @@ class MonetDAO:
         with self.transaction() as cursor:
             return cursor.execute(sql)
 
-    def drop_table(self, table: str):
+    def drop_table(self, table: str) -> int:
         sql = f'DROP TABLE {monet_identifier_escape(self.schema)}.{monet_identifier_escape(table)}'
 
         logging.debug(sql)
@@ -226,7 +226,7 @@ class MonetDAO:
         with self.transaction() as cursor:
             return cursor.execute(sql)
 
-    def insert_into(self, table: str, entry: Entry, cursor: Optional[monetdblite.cursors.Cursor] = None):
+    def insert_into(self, table: str, entry: Entry, cursor: Optional[monetdblite.cursors.Cursor] = None) -> None:
         target = Table(table, schema=self.schema)
 
         query = Query.into(target).insert(*entry.as_values())

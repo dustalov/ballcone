@@ -20,7 +20,7 @@ class WebBallcone:
         self.ballcone = ballcone
 
     @aiohttp_jinja2.template('root.html')
-    async def root(self, _: web.Request):
+    async def root(self, _: web.Request) -> Dict:
         today = datetime.utcnow().date()
 
         services = self.ballcone.dao.tables()
@@ -42,11 +42,11 @@ class WebBallcone:
             'dashboard': dashboard
         }
 
-    async def services(self, request: web.Request):
+    async def services(self, request: web.Request) -> web.Response:
         raise web.HTTPFound(request.app.router['root'].url_for())
 
     @aiohttp_jinja2.template('service.html')
-    async def service(self, request: web.Request):
+    async def service(self, request: web.Request) -> Dict:
         services = self.ballcone.dao.tables()
         service = request.match_info.get('service', None)
 
@@ -90,7 +90,7 @@ class WebBallcone:
             'browsers': browsers
         }
 
-    async def average_or_count(self, request: web.Request):
+    async def average_or_count(self, request: web.Request) -> web.Response:
         service, field = request.match_info['service'], request.match_info['field']
 
         if not self.ballcone.check_service(service):
@@ -105,7 +105,7 @@ class WebBallcone:
             count_response = self.ballcone.dao.select_count(service, field=field, start=start, stop=stop)
             return web.json_response(count_response, dumps=self.ballcone.json_dumps)
 
-    async def count_group(self, request: web.Request):
+    async def count_group(self, request: web.Request) -> web.Response:
         service, group = request.match_info['service'], request.match_info['group']
 
         if not self.ballcone.check_service(service):
@@ -125,7 +125,7 @@ class WebBallcone:
         return web.json_response(response, dumps=self.ballcone.json_dumps)
 
     @aiohttp_jinja2.template('sql.html')
-    async def sql(self, request: web.Request):
+    async def sql(self, request: web.Request) -> Dict:
         data = await request.post()
 
         sql = str(data.get('sql', f"SELECT '{self.ballcone.dao.schema}';"))
@@ -152,7 +152,7 @@ class WebBallcone:
         }
 
     @aiohttp_jinja2.template('nginx.html')
-    async def nginx(self, request: web.Request):
+    async def nginx(self, request: web.Request) -> Dict:
         services = self.ballcone.dao.tables()
 
         service = request.query.get('service')

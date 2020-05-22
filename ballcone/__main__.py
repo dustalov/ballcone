@@ -8,6 +8,7 @@ import logging
 import os
 import sys
 from contextlib import suppress
+from typing import cast
 
 import aiohttp_jinja2
 import jinja2
@@ -58,10 +59,11 @@ def main():
 
     # PyInstaller
     if getattr(sys, 'frozen', False):
-        # noinspection PyProtectedMember
-        jinja2_loader = jinja2.FileSystemLoader(os.path.join(sys._MEIPASS, 'templates'))
+        jinja2_loader = cast(jinja2.BaseLoader, jinja2.FileSystemLoader(
+            os.path.join(getattr(sys, '_MEIPASS'), 'templates')
+        ))
     else:
-        jinja2_loader = jinja2.PackageLoader('ballcone')
+        jinja2_loader = cast(jinja2.BaseLoader, jinja2.PackageLoader('ballcone'))
 
     app = web.Application()
     aiohttp_jinja2.setup(app, loader=jinja2_loader)

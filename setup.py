@@ -1,10 +1,11 @@
 import os
 import re
+from typing import List
 
 from setuptools import setup
 
 
-def get_package_variable(name, rel_path='ballcone/__init__.py'):
+def get_package_variable(name: str, rel_path='ballcone/__init__.py') -> str:
     path = os.path.join(os.path.abspath(os.path.dirname(__file__)), rel_path)
 
     pattern = re.compile(r'^{}.*?([\'"])(?P<value>.+)\1.*$'.format(re.escape(name)))
@@ -29,7 +30,7 @@ with open('requirements.txt', 'r', encoding='UTF-8') as f:
     install_requires = f.read()
 
 
-def package_files(directory):
+def package_files(directory) -> List[str]:
     paths = []
 
     for (path, _, filenames) in os.walk(directory):
