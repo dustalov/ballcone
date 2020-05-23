@@ -13,32 +13,28 @@ class TestMonetDAO(unittest.TestCase):
     SCHEMA = 'test_dao'
 
     ENTRIES_20200101 = [
-        Entry(datetime=datetime(2020, 1, 1, 12), date=date(2020, 1, 1),
-              host='example.com', method='GET', path='/', status=cast(smallint, 200), length=1024,
-              generation_time=0.1, referer=None,
+        Entry(datetime=datetime(2020, 1, 1, 12), date=date(2020, 1, 1), host='example.com', path='/',
+              status=cast(smallint, 200), length=1024, generation_time=0.1, referer=None,
               ip=ip_address('192.168.1.1'), country_iso_code='UNKNOWN',
               platform_name='Mac OS', platform_version='X 10.15',
               browser_name='Firefox', browser_version='75.0', is_robot=False),
 
-        Entry(datetime=datetime(2020, 1, 1, 12, 15), date=date(2020, 1, 1),
-              host='example.com', method='GET', path='/robots.txt', status=cast(smallint, 404), length=0,
-              generation_time=0.01, referer=None,
+        Entry(datetime=datetime(2020, 1, 1, 12, 15), date=date(2020, 1, 1), host='example.com', path='/robots.txt',
+              status=cast(smallint, 404), length=0, generation_time=0.01, referer=None,
               ip=ip_address('192.168.1.1'), country_iso_code='UNKNOWN',
               platform_name='Linux', platform_version=None,
               browser_name=None, browser_version=None, is_robot=True)
     ]
 
     ENTRIES_20200102 = [
-        Entry(datetime=datetime(2020, 1, 2, 23, 59), date=date(2020, 1, 2),
-              host='example.com', method='GET', path='/', status=cast(smallint, 200), length=256,
-              generation_time=0.01, referer='https://github.com/dustalov/ballcone',
+        Entry(datetime=datetime(2020, 1, 2, 23, 59), date=date(2020, 1, 2), host='example.com', path='/',
+              status=cast(smallint, 200), length=256, generation_time=0.01, referer='https://github.com/dustalov',
               ip=ip_address('192.168.1.2'), country_iso_code='UNKNOWN',
               platform_name='iOS', platform_version='13.3.1',
               browser_name='Safari', browser_version='13.0.5', is_robot=False),
 
-        Entry(datetime=datetime(2020, 1, 2, 23, 59, 59), date=date(2020, 1, 2),
-              host='example.com', method='POST', path='/post', status=cast(smallint, 200), length=512,
-              generation_time=1, referer=None,
+        Entry(datetime=datetime(2020, 1, 2, 23, 59, 59), date=date(2020, 1, 2), host='example.com', path='/post',
+              status=cast(smallint, 200), length=512, generation_time=1, referer=None,
               ip=ip_address('192.168.1.2'), country_iso_code='UNKNOWN',
               platform_name='iOS', platform_version='13.3.1',
               browser_name='Safari', browser_version='13.0.5', is_robot=False),

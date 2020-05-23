@@ -80,7 +80,6 @@ class Entry(NamedTuple):
     datetime: datetime
     date: date
     host: str
-    method: str
     path: str
     status: smallint
     length: int

@@ -36,14 +36,13 @@
 <div class="field">
     <label class="label" for="configuration">Snippet for <code>nginx.conf</code></label>
     <div class="control">
-        <textarea id="configuration" class="textarea is-family-monospace" rows="19" readonly>
+        <textarea id="configuration" class="textarea is-family-monospace" rows="18" readonly>
 # Put this before the `server` context
 log_format ballcone_json_{{ service }} escape=json
     '{'
     '"service": "{{ service }}", '
     '"ip": "$remote_addr", '
     '"host": "$host", '
-    '"method": "$request_method", '
     '"path": "$request_uri", '
     '"status": "$status", '
     '"referrer": "$http_referer", '

@@ -74,7 +74,6 @@ class SyslogProtocol(asyncio.DatagramProtocol):
             datetime=current_datetime,
             date=current_datetime.date(),
             host=content['host'],
-            method=content['method'],
             path=path,
             status=cast(smallint, int(content['status'])),
             length=int(content['length']),

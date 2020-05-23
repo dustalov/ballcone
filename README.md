@@ -105,7 +105,6 @@ log_format ballcone_json_example escape=json
     '"service": "example", '
     '"ip": "$remote_addr", '
     '"host": "$host", '
-    '"method": "$request_method", '
     '"path": "$request_uri", '
     '"status": "$status", '
     '"referrer": "$http_referer", '
