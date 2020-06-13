@@ -9,7 +9,7 @@ from typing import Generator, NamedTuple, Optional, List, Sequence, Union, Any, 
 
 import monetdblite
 from monetdblite.monetize import monet_identifier_escape
-from pypika import Query, Column, Field, Table, Order, functions as fn, analytics as an
+from pypika import Query, Column, Field, Parameter, Table, Order, functions as fn, analytics as an
 from pypika.queries import QueryBuilder
 
 smallint = NewType('smallint', int)
@@ -155,6 +155,7 @@ class MonetDAO:
     def __init__(self, db: monetdblite.Connection, schema: str):
         self.db = db
         self.schema = schema
+        self.placeholders = [Parameter('%s') for _ in Entry._fields]
 
     def size(self) -> int:
         # https://www.monetdb.org/Documentation/SQLcatalog/ColumnStorage
@@ -228,16 +229,16 @@ class MonetDAO:
     def insert_into(self, table: str, entry: Entry, cursor: Optional[monetdblite.cursors.Cursor] = None) -> None:
         target = Table(table, schema=self.schema)
 
-        query = Query.into(target).insert(*entry.as_values())
-        sql = str(query)
+        query = Query.into(target).insert(*self.placeholders)
+        sql, values = str(query), entry.as_values()
 
-        logging.debug(sql)
+        logging.debug(sql + ' -- ' + str(values))
 
         if cursor:
-            cursor.execute(sql)
+            cursor.execute(sql, values)
         else:
             with self.transaction() as cursor:
-                cursor.execute(sql)
+                cursor.execute(sql, values)
 
     def batch_insert_into(self, table: str, entries: Sequence[Entry]) -> int:
         count = 0
