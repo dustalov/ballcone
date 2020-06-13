@@ -57,8 +57,8 @@ class TestMonetDAO(unittest.TestCase):
         self.assertTrue(self.dao.schema_exists())
 
     def test_create_and_drop_table(self):
-        table1 = 'test_create_and_drop_table_1'
-        table2 = 'test_create_and_drop_table_2'
+        table1 = __name__ + '_1'
+        table2 = __name__ + '_2'
 
         self.assertEqual([], self.dao.tables())
         self.assertFalse(self.dao.table_exists(table1))
@@ -75,7 +75,7 @@ class TestMonetDAO(unittest.TestCase):
         self.assertFalse(self.dao.table_exists(table1))
 
     def test_insert_into(self):
-        table = 'test_insert_into'
+        table = __name__
 
         self.seed(table, insert_entries=False)
         self.assertEqual(0, len(self.dao.select(table)))
@@ -84,7 +84,7 @@ class TestMonetDAO(unittest.TestCase):
         self.assertEqual(1, len(self.dao.select(table)))
 
     def test_batch_insert_into_and_select(self):
-        table = 'test_batch_insert_into_and_select'
+        table = __name__
 
         self.seed(table, insert_entries=False)
         self.assertEqual(0, len(self.dao.select(table)))
@@ -95,7 +95,7 @@ class TestMonetDAO(unittest.TestCase):
         self.assertEqual(self.ENTRIES, entries)
 
     def test_batch_insert_into_from_deque_and_select(self):
-        table = 'test_batch_insert_into_from_deque_and_select'
+        table = __name__
 
         self.seed(table, insert_entries=False)
         self.assertEqual(0, len(self.dao.select(table)))
@@ -111,7 +111,7 @@ class TestMonetDAO(unittest.TestCase):
         self.assertEqual(self.ENTRIES, entries)
 
     def test_select(self):
-        table = 'test_select'
+        table = __name__
 
         self.seed(table)
 
@@ -131,7 +131,7 @@ class TestMonetDAO(unittest.TestCase):
         self.assertEqual(self.ENTRIES_20200102, after)
 
     def test_select_average(self):
-        table = 'test_select_average'
+        table = __name__
 
         self.seed(table)
 
@@ -176,7 +176,7 @@ class TestMonetDAO(unittest.TestCase):
         self.assertEqual(len(self.ENTRIES_20200102), after.elements[0].count)
 
     def test_select_count(self):
-        table = 'test_select_count'
+        table = __name__
 
         self.seed(table)
 
@@ -231,7 +231,7 @@ class TestMonetDAO(unittest.TestCase):
         self.assertEqual(2, after.elements[0].count)
 
     def test_select_count_group(self):
-        table = 'test_select_count_group'
+        table = __name__
 
         self.seed(table)
 
