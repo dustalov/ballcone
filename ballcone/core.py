@@ -9,6 +9,7 @@ from typing import Optional, Dict, Deque, Tuple, Any
 
 import simplejson
 from geolite2 import maxminddb
+from monetdblite.exceptions import DatabaseError
 
 from .monetdb_dao import MonetDAO, Entry
 
@@ -42,10 +43,13 @@ class Ballcone:
 
     def persist(self) -> None:
         for service, queue in self.queue.items():
-            count = self.dao.batch_insert_into_from_deque(service, queue)
+            try:
+                count = self.dao.batch_insert_into_from_deque(service, queue)
 
-            if count:
-                logging.debug(f'Inserted {count} entries for service {service}')
+                if count:
+                    logging.debug(f'Inserted {count} entries for service {service}')
+            except DatabaseError:
+                logging.exception('Please check if the query is correct')
 
     def unwrap_top_limit(self, top_limit: Optional[int] = None) -> int:
         return top_limit if top_limit else self.top_limit
