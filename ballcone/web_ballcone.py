@@ -5,7 +5,7 @@ from datetime import date, datetime
 from functools import lru_cache
 from ipaddress import ip_address
 from time import time
-from typing import Dict, Optional, List
+from typing import Dict, Optional, List, cast
 
 import aiohttp_jinja2
 import monetdblite
@@ -52,6 +52,8 @@ class WebBallcone:
 
         if not self.ballcone.check_service(service):
             raise web.HTTPNotFound(text=f'No such service: {service}')
+
+        service = cast(str, service)
 
         start, stop = self.ballcone.days_before(days=7)
 
@@ -114,7 +116,7 @@ class WebBallcone:
         field = request.query.get('distinct', None)
         distinct = bool(request.query.get('distinct', None))
         ascending = bool(request.query.get('ascending', None))
-        limit = int(request.query.get('limit', None))
+        limit = int(request.query['limit']) if 'limit' in request.query else None
 
         start, stop = self.ballcone.days_before()
 
