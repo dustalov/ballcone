@@ -54,8 +54,12 @@ class Ballcone:
     def unwrap_top_limit(self, top_limit: Optional[int] = None) -> int:
         return top_limit if top_limit else self.top_limit
 
-    def check_service(self, service: str, should_exist: bool = False) -> bool:
-        return VALID_SERVICE.match(service) is not None and (not should_exist or self.dao.table_exists(service))
+    def check_service(self, service: Optional[str], should_exist: bool = False) -> bool:
+        return (
+            service is not None
+            and VALID_SERVICE.match(service) is not None
+            and (not should_exist or self.dao.table_exists(service))
+        )
 
     @staticmethod
     def iso_code(geoip: maxminddb.reader.Reader, ip: str) -> Optional[str]:
