@@ -1,6 +1,6 @@
 httpagentparser==1.9.0
 maxminddb-geolite2==2018.703
-aiohttp==3.7.1
+aiohttp==3.7.2
 aiohttp-jinja2==1.2.0
 monetdblite==0.6.4
 PyPika==0.42.1
