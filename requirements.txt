@@ -3,6 +3,6 @@ maxminddb-geolite2==2018.703
 aiohttp==3.7.3
 aiohttp-jinja2==1.4.2
 monetdblite==0.6.4
-PyPika==0.44.0
+PyPika==0.44.1
 simplejson==3.17.2
 python-dateutil==2.8.1
