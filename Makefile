@@ -1,12 +1,14 @@
 export LANG := en_US.UTF-8
 
+PIPENV := nice pipenv run
+
 -include Makefile.local
 
-run: ballcone/__main__.py | .venv-installed
-	PYTHONPATH=$(CURDIR) nice venv/bin/python3 $<
+run: ballcone/__main__.py
+	$(PIPENV) "$<"
 
-pyinstaller: ballcone.spec | .venv-installed
-	nice venv/bin/pyinstaller $<
+pyinstaller: ballcone.spec
+	$(PIPENV) pyinstaller "$<"
 
 install-systemd:
 	cp -Rvf dist/ballcone /usr/local/bin/ballcone
@@ -18,18 +20,13 @@ install-systemd:
 	systemctl restart ballcone
 
 test:
-	python3 -munittest discover
+	$(PIPENV) python3 -munittest discover
 
 mypy:
-	mypy --ignore-missing-imports $(shell git ls-files '*.py')
+	$(PIPENV) mypy --ignore-missing-imports $(shell git ls-files '*.py')
 
 docker:
 	docker build --rm -t ballcone .
 
-.venv-installed: requirements.txt requirements-dev.txt
-	python3 -mvenv venv
-	venv/bin/python3 -mpip install -U pip
-	venv/bin/pip3 install -r requirements.txt
-	venv/bin/pip3 install -r requirements-dev.txt
-	venv/bin/pip3 --version
-	venv/bin/pip3 list > $@
+pipenv:
+	pipenv install --dev -e .
