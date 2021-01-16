@@ -1,11 +1,9 @@
 [[source]]
-
 url = "https://pypi.python.org/simple"
 verify_ssl = true
 name = "pypi"
 
 [packages]
-
 httpagentparser = "*"
 maxminddb-geolite2 = "*"
 aiohttp = "*"
@@ -16,7 +14,8 @@ simplejson = "*"
 python-dateutil = "*"
 
 [dev-packages]
-
 mypy = "*"
 flake8 = "*"
 pyinstaller = "*"
+twine = "*"
+build = "*"

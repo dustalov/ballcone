@@ -29,4 +29,4 @@ docker:
 	docker build --rm -t ballcone .
 
 pipenv:
-	pipenv install --dev -e .
+	pipenv install --dev
