@@ -24,17 +24,17 @@ jobs:
       run: |
         python3 -m pip install --upgrade pip
         pip install pipenv
-        pipenv install --dev
+        pipenv install --dev --system
     - name: Lint with Mypy
-      run: pipenv run mypy --ignore-missing-imports .
+      run: mypy --ignore-missing-imports .
     - name: Lint with flake8
       run: |
-        pipenv run flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
-        pipenv run flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+        flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
     - name: Test with unittest
       run: |
-        pipenv run python3 -munittest discover
+        python3 -munittest discover
     - name: Build with PyInstaller
       run: |
-        pipenv run pyinstaller ballcone.spec
+        pyinstaller ballcone.spec
         dist/ballcone --version
