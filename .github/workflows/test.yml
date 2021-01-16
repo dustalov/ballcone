@@ -23,7 +23,7 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip pipenv
-        pipenv install
+        pipenv install --dev
         pip install .
     - name: Lint with Mypy
       run: mypy --ignore-missing-imports .
