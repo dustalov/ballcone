@@ -12,6 +12,7 @@ monetdblite = "*"
 PyPika = "*"
 simplejson = "*"
 python-dateutil = "*"
+ballcone = {editable = true, path = "."}
 
 [dev-packages]
 mypy = "*"
