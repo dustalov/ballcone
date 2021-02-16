@@ -295,10 +295,10 @@
         },
         "pypika": {
             "hashes": [
-                "sha256:61cb1718f3167ebf834d63253c4a878049089f13981a09ae6ca5439f91929634"
+                "sha256:87e380fea27ade02db274f2fcfc5f0c9ae115916cf9b26feb6ab31a41fe81e2d"
             ],
             "index": "pypi",
-            "version": "==0.47.5"
+            "version": "==0.47.6"
         },
         "python-dateutil": {
             "hashes": [
