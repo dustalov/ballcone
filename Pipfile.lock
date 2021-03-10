@@ -439,11 +439,11 @@
         },
         "build": {
             "hashes": [
-                "sha256:0eb95b2c8d770d7c4c9b92c68c227c350bbf65f3ec83551ace9097c18cc15fdd",
-                "sha256:75bc5676b1a014fb996dc96914428b197d174364392a46778200d5e115ffe76c"
+                "sha256:439c1c1708a0292d251f2f76edcfb314b015bbc9a5e0d2bf49d9f4afcb2d4408",
+                "sha256:db7a2b25c013f84583e06bbe1bb7ae6a784a199463032001995cb7d974813b26"
             ],
             "index": "pypi",
-            "version": "==0.3.0"
+            "version": "==0.3.1"
         },
         "certifi": {
             "hashes": [
