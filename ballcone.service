@@ -5,7 +5,9 @@ After=network.target
 [Service]
 User=nobody
 WorkingDirectory=/var/lib/ballcone
+Environment="TMPDIR=/var/lib/ballcone/pyinstaller"
 ExecStart=/usr/local/bin/ballcone -m '/var/lib/ballcone/monetdb'
+ExecStartPre=-/bin/mkdir -p /var/lib/ballcone/pyinstaller
 Restart=on-failure
 
 [Install]
