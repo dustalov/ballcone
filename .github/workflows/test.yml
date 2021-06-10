@@ -25,7 +25,6 @@ jobs:
         python3 -m pip install --upgrade pip
         pip install pipenv
         pipenv install --dev --system
-        pip install types-simplejson types-python-dateutil
     - name: Lint with Mypy
       run: mypy --ignore-missing-imports .
     - name: Lint with flake8
