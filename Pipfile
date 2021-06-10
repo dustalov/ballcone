@@ -16,6 +16,7 @@ ballcone = {editable = true, path = "."}
 
 [dev-packages]
 mypy = "*"
+typed-ast = "*"
 flake8 = "*"
 pyinstaller = "*"
 twine = "*"
