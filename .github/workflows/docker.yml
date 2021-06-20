@@ -45,7 +45,7 @@ jobs:
       uses: docker/build-push-action@v2
       with:
         context: .
-        file: Dockerfile.jekyll
+        file: Dockerfile.demo
         push: true
         tags: |
           dustalov/ballcone:demo
