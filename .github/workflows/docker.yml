@@ -12,8 +12,6 @@ jobs:
     steps:
     - name: Checkout
       uses: actions/checkout@v2
-    - name: Set up QEMU
-      uses: docker/setup-qemu-action@v1
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v1
     - name: Login to DockerHub
@@ -26,7 +24,6 @@ jobs:
       uses: docker/build-push-action@v2
       with:
         context: .
-        platforms: linux/amd64,linux/arm64
         push: true
         tags: |
           dustalov/ballcone:latest
@@ -36,8 +33,6 @@ jobs:
     steps:
     - name: Checkout
       uses: actions/checkout@v2
-    - name: Set up QEMU
-      uses: docker/setup-qemu-action@v1
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v1
     - name: Login to DockerHub
@@ -51,7 +46,6 @@ jobs:
       with:
         context: .
         file: Dockerfile.jekyll
-        platforms: linux/amd64,linux/arm64
         push: true
         tags: |
           dustalov/ballcone:demo
