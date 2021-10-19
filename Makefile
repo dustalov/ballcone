@@ -23,7 +23,7 @@ test:
 	$(PIPENV) python3 -munittest discover
 
 mypy:
-	$(PIPENV) mypy --ignore-missing-imports $(shell git ls-files '*.py')
+	$(PIPENV) mypy --strict --ignore-missing-imports $(shell git ls-files '*.py')
 
 docker:
 	docker build --rm -t ballcone .

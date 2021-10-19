@@ -96,17 +96,17 @@ class Entry(NamedTuple):
     is_robot: Optional[bool]
 
     @staticmethod
-    def from_values(entry: Sequence) -> 'Entry':
+    def from_values(entry: Sequence[Any]) -> 'Entry':
         return Entry(*(sql_value_to_python(name, annotation, value)
                        for (name, annotation), value in zip(Entry.__annotations__.items(), entry)))
 
     @staticmethod
     def as_value(value: Any, annotation: Any = None) -> Any:
         if isinstance(value, datetime):
-            return timegm(cast(datetime, value).utctimetuple())
+            return timegm(value.utctimetuple())
 
         if isinstance(value, date):
-            return cast(date, value).toordinal()
+            return value.toordinal()
 
         if isinstance(value, (IPv4Address, IPv6Address)):
             return str(value)
@@ -118,7 +118,7 @@ class Entry(NamedTuple):
         else:
             return value
 
-    def as_values(self) -> Tuple:
+    def as_values(self) -> Sequence[Any]:
         return tuple(self.as_value(getattr(self, name), annotation)
                      for name, annotation in self.__annotations__.items())
 
@@ -152,7 +152,7 @@ class AverageResult(NamedTuple):
 
 
 class MonetDAO:
-    def __init__(self, db: monetdblite.Connection, schema: str):
+    def __init__(self, db: monetdblite.Connection, schema: str) -> None:
         self.db = db
         self.schema = schema
         self.placeholders = [Parameter('%s') for _ in Entry._fields]
@@ -174,7 +174,7 @@ class MonetDAO:
         logging.debug(sql)
 
         with self.transaction() as cursor:
-            return cursor.execute(sql)
+            return cast(int, cursor.execute(sql))
 
     def schema_exists(self) -> bool:
         schemas = Table('schemas', schema='sys')
@@ -216,7 +216,7 @@ class MonetDAO:
         logging.debug(sql)
 
         with self.transaction() as cursor:
-            return cursor.execute(sql)
+            return cast(int, cursor.execute(sql))
 
     def drop_table(self, table: str) -> int:
         sql = f'DROP TABLE {monet_identifier_escape(self.schema)}.{monet_identifier_escape(table)}'
@@ -224,7 +224,7 @@ class MonetDAO:
         logging.debug(sql)
 
         with self.transaction() as cursor:
-            return cursor.execute(sql)
+            return cast(int, cursor.execute(sql))
 
     def insert_into(self, table: str, entry: Entry, cursor: Optional[monetdblite.cursors.Cursor] = None) -> None:
         target = Table(table, schema=self.schema)
@@ -271,14 +271,14 @@ class MonetDAO:
 
         query = self.apply_dates(query, target, start, stop)
 
-        rows = cast(List[Union[List, Entry]], self.run(query))
+        rows = cast(List[Union[List[Any], Entry]], self.run(query))
 
         for i, current in enumerate(rows):
-            rows[i] = Entry.from_values(cast(List, current))
+            rows[i] = Entry.from_values(cast(List[Any], current))
 
         return cast(List[Entry], rows)
 
-    def select_average(self, table: str, field: str, start: date = None, stop: date = None) -> AverageResult:
+    def select_average(self, table: str, field: str, start: Optional[date] = None, stop: Optional[date] = None) -> AverageResult:
         target = Table(table, schema=self.schema)
         target_field = Field(field, table=target)
 
@@ -365,7 +365,7 @@ class MonetDAO:
 
         return result
 
-    def run(self, query: Union[QueryBuilder, str]) -> List[List]:
+    def run(self, query: Union[QueryBuilder, str]) -> List[List[Any]]:
         sql = str(query) if isinstance(query, QueryBuilder) else query
 
         logging.debug(sql)
@@ -373,7 +373,7 @@ class MonetDAO:
         with self.cursor() as cursor:
             cursor.execute(sql)
 
-            return cursor.fetchall()
+            return cast(List[List[Any]], cursor.fetchall())
 
     @staticmethod
     def apply_dates(query: QueryBuilder, target: Table,

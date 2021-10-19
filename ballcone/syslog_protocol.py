@@ -21,7 +21,7 @@ NGINX_SYSLOG = re.compile(r'\A<[0-9]{1,3}>.*?: (?P<message>.+)\Z')
 
 
 class SyslogProtocol(asyncio.DatagramProtocol):
-    def __init__(self, ballcone: Ballcone):
+    def __init__(self, ballcone: Ballcone) -> None:
         super().__init__()
         self.ballcone = ballcone
         self.transport: Optional[asyncio.BaseTransport] = None

@@ -5,7 +5,7 @@ from datetime import date, datetime
 from functools import lru_cache
 from ipaddress import ip_address
 from time import time
-from typing import Dict, Optional, List, cast
+from typing import Dict, Optional, List, Any, cast
 
 import aiohttp_jinja2
 import monetdblite
@@ -16,11 +16,11 @@ from ballcone.core import VALID_SERVICE, Ballcone
 
 
 class WebBallcone:
-    def __init__(self, ballcone: Ballcone):
+    def __init__(self, ballcone: Ballcone) -> None:
         self.ballcone = ballcone
 
     @aiohttp_jinja2.template('root.html')
-    async def root(self, _: web.Request) -> Dict:
+    async def root(self, _: web.Request) -> Dict[str, Any]:
         today = datetime.utcnow().date()
 
         services = self.ballcone.dao.tables()
@@ -46,7 +46,7 @@ class WebBallcone:
         raise web.HTTPFound(request.app.router['root'].url_for())
 
     @aiohttp_jinja2.template('service.html')
-    async def service(self, request: web.Request) -> Dict:
+    async def service(self, request: web.Request) -> Dict[str, Any]:
         services = self.ballcone.dao.tables()
         service = request.match_info.get('service', None)
 
@@ -127,12 +127,12 @@ class WebBallcone:
         return web.json_response(response, dumps=self.ballcone.json_dumps)
 
     @aiohttp_jinja2.template('sql.html')
-    async def sql(self, request: web.Request) -> Dict:
+    async def sql(self, request: web.Request) -> Dict[str, Any]:
         data = await request.post()
 
         sql = str(data.get('sql', f"SELECT '{self.ballcone.dao.schema}';"))
 
-        result: List = []
+        result: List[List[Any]] = []
         error: Optional[str] = None
 
         if sql:
@@ -154,7 +154,7 @@ class WebBallcone:
         }
 
     @aiohttp_jinja2.template('nginx.html')
-    async def nginx(self, request: web.Request) -> Dict:
+    async def nginx(self, request: web.Request) -> Dict[str, Any]:
         services = self.ballcone.dao.tables()
 
         service = request.query.get('service')

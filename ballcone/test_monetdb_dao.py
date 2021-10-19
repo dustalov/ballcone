@@ -42,21 +42,21 @@ class TestMonetDAO(unittest.TestCase):
 
     ENTRIES = [*ENTRIES_20200101, *ENTRIES_20200102]
 
-    def setUp(self):
+    def setUp(self) -> None:
         self.db = monetdblite.make_connection(':memory:')
         self.dao = MonetDAO(self.db, self.SCHEMA)
         self.dao.create_schema()
 
-    def tearDown(self):
+    def tearDown(self) -> None:
         self.db.close()
 
-    def test_database_size(self):
+    def test_database_size(self) -> None:
         self.assertLess(0, self.dao.size())
 
-    def test_schema_exists(self):
+    def test_schema_exists(self) -> None:
         self.assertTrue(self.dao.schema_exists())
 
-    def test_create_and_drop_table(self):
+    def test_create_and_drop_table(self) -> None:
         table1 = __name__ + '_1'
         table2 = __name__ + '_2'
 
@@ -74,7 +74,7 @@ class TestMonetDAO(unittest.TestCase):
         self.assertEqual([table2], self.dao.tables())
         self.assertFalse(self.dao.table_exists(table1))
 
-    def test_insert_into(self):
+    def test_insert_into(self) -> None:
         table = __name__
 
         self.seed(table, insert_entries=False)
@@ -83,7 +83,7 @@ class TestMonetDAO(unittest.TestCase):
         self.dao.insert_into(table, self.ENTRIES[0])
         self.assertEqual(1, len(self.dao.select(table)))
 
-    def test_batch_insert_into_and_select(self):
+    def test_batch_insert_into_and_select(self) -> None:
         table = __name__
 
         self.seed(table, insert_entries=False)
@@ -94,7 +94,7 @@ class TestMonetDAO(unittest.TestCase):
 
         self.assertEqual(self.ENTRIES, entries)
 
-    def test_batch_insert_into_from_deque_and_select(self):
+    def test_batch_insert_into_from_deque_and_select(self) -> None:
         table = __name__
 
         self.seed(table, insert_entries=False)
@@ -110,7 +110,7 @@ class TestMonetDAO(unittest.TestCase):
         entries = self.dao.select(table)
         self.assertEqual(self.ENTRIES, entries)
 
-    def test_select(self):
+    def test_select(self) -> None:
         table = __name__
 
         self.seed(table)
@@ -130,7 +130,7 @@ class TestMonetDAO(unittest.TestCase):
         after = self.dao.select(table, start=date(2020, 1, 2))
         self.assertEqual(self.ENTRIES_20200102, after)
 
-    def test_select_average(self):
+    def test_select_average(self) -> None:
         table = __name__
 
         self.seed(table)
@@ -175,7 +175,7 @@ class TestMonetDAO(unittest.TestCase):
         self.assertEqual(0.505, after.elements[0].avg)
         self.assertEqual(len(self.ENTRIES_20200102), after.elements[0].count)
 
-    def test_select_count(self):
+    def test_select_count(self) -> None:
         table = __name__
 
         self.seed(table)
@@ -230,7 +230,7 @@ class TestMonetDAO(unittest.TestCase):
         self.assertEqual(date(2020, 1, 2), after.elements[0].date)
         self.assertEqual(2, after.elements[0].count)
 
-    def test_select_count_group(self):
+    def test_select_count_group(self) -> None:
         table = __name__
 
         self.seed(table)
@@ -291,11 +291,11 @@ class TestMonetDAO(unittest.TestCase):
         self.assertEqual(date(2020, 1, 2), after.elements[0].date)
         self.assertEqual(2, after.elements[0].count)
 
-    def test_error(self):
+    def test_error(self) -> None:
         with self.assertRaises(monetdblite.exceptions.DatabaseError):
             self.dao.run('SELECT UNSELECT;')
 
-    def seed(self, table, create_table=True, insert_entries=True):
+    def seed(self, table: str, create_table: bool = True, insert_entries: bool = True) -> None:
         if create_table:
             self.assertFalse(self.dao.table_exists(table))
             self.dao.create_table(table)

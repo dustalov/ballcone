@@ -23,7 +23,7 @@ from ballcone.syslog_protocol import SyslogProtocol
 from ballcone.web_ballcone import WebBallcone
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument('-v', '--version', action='version', version=f'Ballcone v{__version__}')
     parser.add_argument('-sh', '--syslog-host', default='127.0.0.1', help='syslog host to bind')
@@ -100,4 +100,4 @@ def main():
 
 
 if __name__ == '__main__':
-    sys.exit(main())
+    main()

@@ -5,7 +5,7 @@ import logging
 import re
 from datetime import datetime, date, timedelta
 from ipaddress import IPv4Address, IPv6Address
-from typing import Optional, Dict, Deque, Tuple, Any
+from typing import Optional, Dict, Deque, Tuple, Any, cast
 
 import simplejson
 from geolite2 import maxminddb
@@ -17,6 +17,10 @@ VALID_SERVICE = re.compile(r'\A[\w]+\Z')
 
 
 class BallconeJSONEncoder(simplejson.JSONEncoder):
+    def __init__(self) -> None:
+        # This is annoying.
+        super().__init__()  # type: ignore
+
     def default(self, obj: Any) -> str:
         if isinstance(obj, date):
             return obj.isoformat()
@@ -24,12 +28,12 @@ class BallconeJSONEncoder(simplejson.JSONEncoder):
         if isinstance(obj, (IPv4Address, IPv6Address)):
             return str(obj)
 
-        return super().default(obj)
+        return cast(str, super().default(obj))
 
 
 class Ballcone:
     def __init__(self, dao: MonetDAO, geoip: maxminddb.reader.Reader,
-                 top_limit: int = 5, persist_period: int = 5):
+                 top_limit: int = 5, persist_period: int = 5) -> None:
         self.dao = dao
         self.geoip = geoip
         self.top_limit = top_limit
