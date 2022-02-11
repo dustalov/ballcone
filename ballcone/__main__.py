@@ -82,10 +82,8 @@ def main() -> None:
     try:
         loop.run_forever()
     finally:
-        all_tasks_func = asyncio.all_tasks if hasattr(asyncio, 'all_tasks') else asyncio.Task.all_tasks  # Python 3.6
-
         with suppress(RuntimeError):
-            for task in all_tasks_func():
+            for task in asyncio.all_tasks():
                 task.cancel()
 
                 with suppress(asyncio.CancelledError):
