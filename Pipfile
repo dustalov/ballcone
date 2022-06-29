@@ -4,14 +4,6 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-httpagentparser = "*"
-maxminddb-geolite2 = "*"
-aiohttp = "*"
-aiohttp-jinja2 = "*"
-monetdblite = "*"
-PyPika = "*"
-simplejson = "*"
-python-dateutil = "*"
 ballcone = {editable = true, path = "."}
 
 [dev-packages]
