@@ -10,7 +10,7 @@ from typing import Optional, Dict, Deque, Tuple, Any, cast
 import simplejson
 from geolite2 import maxminddb
 
-from .monetdb_dao import MonetDAO, Entry
+from .dao import DAO, Entry
 
 VALID_SERVICE = re.compile(r'\A[\w]+\Z')
 
@@ -27,7 +27,7 @@ class BallconeJSONEncoder(simplejson.JSONEncoder):
 
 
 class Ballcone:
-    def __init__(self, dao: MonetDAO, geoip: maxminddb.reader.Reader,
+    def __init__(self, dao: DAO, geoip: maxminddb.reader.Reader,
                  top_limit: int = 5, persist_period: int = 5) -> None:
         self.dao = dao
         self.geoip = geoip
@@ -55,9 +55,9 @@ class Ballcone:
 
     def check_service(self, service: Optional[str], should_exist: bool = False) -> bool:
         return (
-            service is not None
-            and VALID_SERVICE.match(service) is not None
-            and (not should_exist or self.dao.table_exists(service))
+                service is not None
+                and VALID_SERVICE.match(service) is not None
+                and (not should_exist or self.dao.table_exists(service))
         )
 
     @staticmethod

@@ -139,7 +139,7 @@ class AverageResult(NamedTuple):
     elements: List[Average]
 
 
-class MonetDAO:
+class DAO:
     def __init__(self, db: duckdb.DuckDBPyConnection) -> None:
         self.db = db
         self.placeholders = [Parameter('?') for _ in Entry._fields]

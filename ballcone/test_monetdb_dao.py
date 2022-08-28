@@ -6,7 +6,7 @@ from typing import cast
 
 import duckdb
 
-from ballcone.monetdb_dao import MonetDAO, Entry, smallint
+from ballcone.dao import DAO, Entry, smallint
 
 
 class TestMonetDAO(unittest.TestCase):
@@ -42,7 +42,7 @@ class TestMonetDAO(unittest.TestCase):
 
     def setUp(self) -> None:
         self.db = duckdb.connect(':memory:')
-        self.dao = MonetDAO(self.db)
+        self.dao = DAO(self.db)
 
     def tearDown(self) -> None:
         self.db.close()

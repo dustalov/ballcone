@@ -8,18 +8,18 @@ import logging
 import os
 import sys
 from contextlib import suppress
-from typing import cast
 from pathlib import Path
+from typing import cast
 
 import aiohttp_jinja2
-import jinja2
 import duckdb
+import jinja2
 from aiohttp import web
 from geolite2 import geolite2
 
 from ballcone import __version__
 from ballcone.core import Ballcone
-from ballcone.monetdb_dao import MonetDAO
+from ballcone.dao import DAO
 from ballcone.syslog_protocol import SyslogProtocol
 from ballcone.web_ballcone import WebBallcone
 
@@ -40,7 +40,7 @@ def main() -> None:
 
     connection = duckdb.connect(str(args.database.resolve()))
 
-    dao = MonetDAO(connection)
+    dao = DAO(connection)
 
     geoip = geolite2.reader()
 
