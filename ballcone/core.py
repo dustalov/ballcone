@@ -9,7 +9,6 @@ from typing import Optional, Dict, Deque, Tuple, Any, cast
 
 import simplejson
 from geolite2 import maxminddb
-from monetdblite.exceptions import DatabaseError
 
 from .monetdb_dao import MonetDAO, Entry
 
@@ -48,7 +47,7 @@ class Ballcone:
 
                 if count:
                     logging.debug(f'Inserted {count} entries for service {service}')
-            except DatabaseError:
+            except RuntimeError:
                 logging.exception('Please check if the query is correct')
 
     def unwrap_top_limit(self, top_limit: Optional[int] = None) -> int:

@@ -8,7 +8,6 @@ from time import time
 from typing import Dict, Optional, List, Any, cast
 
 import aiohttp_jinja2
-import monetdblite
 from aiohttp import web
 
 from ballcone import __version__
@@ -138,7 +137,7 @@ class WebBallcone:
         if sql:
             try:
                 result = self.ballcone.dao.run(sql)
-            except monetdblite.exceptions.DatabaseError as e:
+            except RuntimeError as e:
                 error = str(e)
 
         services = self.ballcone.dao.tables()

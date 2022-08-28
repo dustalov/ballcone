@@ -1,15 +1,12 @@
 # -*- mode: python ; coding: utf-8 -*-
 
 import geolite2
-import monetdblite
 
 geolite2_city = geolite2.geolite2_database()
-libmonetdb5 = monetdblite.embeddedmonetdb.dll._name
 
 block_cipher = None
 
 a = Analysis(['ballcone/__main__.py'],
-             binaries=[(libmonetdb5, 'monetdblite')],
              datas=[(geolite2_city, '_maxminddb_geolite2'), ('ballcone/templates', 'templates')],
              hiddenimports=['cmath', 'pkg_resources.py2_warn'],
              hookspath=[],

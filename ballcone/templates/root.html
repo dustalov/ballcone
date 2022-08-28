@@ -35,6 +35,6 @@ $(document).ready(function() {
 {% endfor %}
 <div class="content">
     <p>If you see nothing, <a href="{{ url('nginx') }}">start configuring</a> your nginx.</p>
-    <p>MonetDBLite consumed {{ size }} byte{% if size != 1 %}s{% endif %} of disk space.</p>
+    <p>DuckDB consumed {{ size }} byte{% if size != 1 %}s{% endif %} of disk space.</p>
 </div>
 {% endblock %}

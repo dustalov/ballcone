@@ -29,7 +29,7 @@ Ballcone is a fast and lightweight server-side Web analytics solution. It requir
 
 ## Architecture
 
-Ballcone captures the `access_log` entries exported in JSON by nginx via the bundled [syslog logger](https://nginx.org/en/docs/syslog.html) (`65140/udp`). These entries are stored in the embedded MonetDBLite database. Ballcone uses it to perform data manipulation and analytic queries. Also, Ballcone provides a convenient Web interface (`8080/tcp`) for accessing and observing the gathered data.
+Ballcone captures the `access_log` entries exported in JSON by nginx via the bundled [syslog logger](https://nginx.org/en/docs/syslog.html) (`65140/udp`). These entries are stored in the embedded DuckDB database. Ballcone uses it to perform data manipulation and analytic queries. Also, Ballcone provides a convenient Web interface (`8080/tcp`) for accessing and observing the gathered data.
 
 ```
           +-----------+            +------------+
@@ -37,17 +37,17 @@ Ballcone captures the `access_log` entries exported in JSON by nginx via the bun
 <-------->+   nginx   +----------->+  Ballcone  +<-------->
           |           |    JSON    |            |
           +-----------+            +------------+
-                                   |MonetDB-Lite|
+                                   |   DuckDB   |
                                    +------------+
 ```
 
-For better performance, Ballcone inserts data in batches, committing them to MonetDBLite every few seconds (five seconds by default).
+For better performance, Ballcone inserts data in batches, committing them to DuckDB every few seconds (five seconds by default).
 
 ## Requirements
 
-* Python 3.8
-* [MonetDBLite](https://github.com/monetDB/MonetDBLite-Python) 0.6.4
-* nginx &geq; 1.7.1
+* [Python](https://www.python.org/) 3.9
+* [DuckDB](https://duckdb.org/) &geq; 0.4.0
+* [nginx](https://nginx.org/) &geq; 1.7.1
 
 ## Demo
 
@@ -75,10 +75,10 @@ The simplest way to get started is to run `make pipenv` after cloning the reposi
 
 ### Getting Ballcone
 
-Running the Docker image is the simplest way to get started. Docker Hub performs automated builds of the Ballcone source code from GitHub: <https://hub.docker.com/r/dustalov/ballcone>. The following command runs Ballcone on `127.0.0.1`: the syslog protocol will be available via `65140/udp`, the Web interface will be available via `8080/tcp`, and the data will be stored in the `/var/lib/ballcone` directory on the host machine.
+Running the Docker image is the simplest way to get started. Docker Hub contains automated builds of the Ballcone source code from GitHub: <https://hub.docker.com/r/dustalov/ballcone>. The following command runs Ballcone on `127.0.0.1`: the syslog protocol will be available via `65140/udp`, the Web interface will be available via `8080/tcp`, and the data will be stored in the `/var/lib/ballcone` directory on the host machine.
 
 ```shell
-docker run -p '127.0.0.1:8080:8080' -p '127.0.0.1:65140:65140/udp' -v '/var/lib/ballcone/monetdb:/usr/src/app/monetdb' --restart=unless-stopped dustalov/ballcone ballcone -sh '0.0.0.0' -wh '0.0.0.0'
+docker run -p '127.0.0.1:8080:8080' -p '127.0.0.1:65140:65140/udp' -v '/var/lib/ballcone:/usr/src/app/duckdb' --restart=unless-stopped dustalov/ballcone ballcone -sh '0.0.0.0' -wh '0.0.0.0' -d 'duckdb/ballcone.duckdb'
 ```
 
 However, Docker is not the only option. Alternatively, Ballcone can be packaged into a standalone executable using [PyInstaller](http://www.pyinstaller.org/) and runned as a [systemd](https://systemd.io/) service (see [ballcone.service](ballcone.service) as an example):
@@ -95,7 +95,7 @@ Finally, Ballcone can be installed directly on the host machine for manual runs:
 pip3 install -e git+https://github.com/dustalov/ballcone@master#egg=ballcone
 ```
 
-Note that `ballcone` without arguments creates the `monetdb` directory inside the current directory.
+Note that `ballcone` without arguments creates the `ballcone.duckdb` database file inside the current directory.
 
 ### Configuring nginx
 
