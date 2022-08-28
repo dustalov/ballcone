@@ -40,7 +40,6 @@ SELECT t.name
 FROM sys.tables AS t
 JOIN sys.schemas AS s ON t.schema_id = s.id
 WHERE s.name = 'ballcone'
--- AND t.name <> 'nlpub'
 ORDER BY t.name
 '''
 
