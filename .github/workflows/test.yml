@@ -89,4 +89,4 @@ jobs:
           push: ${{ github.event_name != 'pull_request' }}
           tags: |
             dustalov/ballcone:demo
-          ghcr.io/dustalov/ballcone:demo
+            ghcr.io/dustalov/ballcone:demo
