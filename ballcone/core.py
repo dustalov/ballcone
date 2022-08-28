@@ -55,9 +55,9 @@ class Ballcone:
 
     def check_service(self, service: Optional[str], should_exist: bool = False) -> bool:
         return (
-                service is not None
-                and VALID_SERVICE.match(service) is not None
-                and (not should_exist or self.dao.table_exists(service))
+            service is not None
+            and VALID_SERVICE.match(service) is not None
+            and (not should_exist or self.dao.table_exists(service))
         )
 
     @staticmethod
