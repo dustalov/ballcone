@@ -4,22 +4,20 @@ from datetime import datetime, date
 from ipaddress import ip_address
 from typing import cast
 
-import monetdblite
+import duckdb
 
 from ballcone.monetdb_dao import MonetDAO, Entry, smallint
 
 
 class TestMonetDAO(unittest.TestCase):
-    SCHEMA = 'test_dao'
-
     ENTRIES_20200101 = [
-        Entry(datetime=datetime(2020, 1, 1, 12), date=date(2020, 1, 1), host='example.com', path='/',
+        Entry(datetime=datetime(2020, 1, 1, 12), host='example.com', path='/',
               status=cast(smallint, 200), length=1024, generation_time=0.1, referer=None,
               ip=ip_address('192.168.1.1'), country_iso_code='UNKNOWN',
               platform_name='Mac OS', platform_version='X 10.15',
               browser_name='Firefox', browser_version='75.0', is_robot=False),
 
-        Entry(datetime=datetime(2020, 1, 1, 12, 15), date=date(2020, 1, 1), host='example.com', path='/robots.txt',
+        Entry(datetime=datetime(2020, 1, 1, 12, 15), host='example.com', path='/robots.txt',
               status=cast(smallint, 404), length=0, generation_time=0.01, referer=None,
               ip=ip_address('192.168.1.1'), country_iso_code='UNKNOWN',
               platform_name='Linux', platform_version=None,
@@ -27,13 +25,13 @@ class TestMonetDAO(unittest.TestCase):
     ]
 
     ENTRIES_20200102 = [
-        Entry(datetime=datetime(2020, 1, 2, 23, 59), date=date(2020, 1, 2), host='example.com', path='/',
+        Entry(datetime=datetime(2020, 1, 2, 23, 59), host='example.com', path='/',
               status=cast(smallint, 200), length=256, generation_time=0.01, referer='https://github.com/dustalov',
               ip=ip_address('192.168.1.2'), country_iso_code='UNKNOWN',
               platform_name='iOS', platform_version='13.3.1',
               browser_name='Safari', browser_version='13.0.5', is_robot=False),
 
-        Entry(datetime=datetime(2020, 1, 2, 23, 59, 59), date=date(2020, 1, 2), host='example.com', path='/post',
+        Entry(datetime=datetime(2020, 1, 2, 23, 59, 59), host='example.com', path='/post',
               status=cast(smallint, 200), length=512, generation_time=1, referer=None,
               ip=ip_address('192.168.1.2'), country_iso_code='UNKNOWN',
               platform_name='iOS', platform_version='13.3.1',
@@ -43,18 +41,14 @@ class TestMonetDAO(unittest.TestCase):
     ENTRIES = [*ENTRIES_20200101, *ENTRIES_20200102]
 
     def setUp(self) -> None:
-        self.db = monetdblite.make_connection(':memory:')
-        self.dao = MonetDAO(self.db, self.SCHEMA)
-        self.dao.create_schema()
+        self.db = duckdb.connect(':memory:')
+        self.dao = MonetDAO(self.db)
 
     def tearDown(self) -> None:
         self.db.close()
 
     def test_database_size(self) -> None:
-        self.assertLess(0, self.dao.size())
-
-    def test_schema_exists(self) -> None:
-        self.assertTrue(self.dao.schema_exists())
+        self.assertEqual(0, self.dao.size())
 
     def test_create_and_drop_table(self) -> None:
         table1 = __name__ + '_1'
@@ -292,7 +286,7 @@ class TestMonetDAO(unittest.TestCase):
         self.assertEqual(2, after.elements[0].count)
 
     def test_error(self) -> None:
-        with self.assertRaises(monetdblite.exceptions.DatabaseError):
+        with self.assertRaises(RuntimeError):
             self.dao.run('SELECT UNSELECT;')
 
     def seed(self, table: str, create_table: bool = True, insert_entries: bool = True) -> None:

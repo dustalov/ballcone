@@ -6,8 +6,8 @@ After=network.target
 User=nobody
 WorkingDirectory=/var/lib/ballcone
 Environment="TMPDIR=/var/lib/ballcone/pyinstaller"
-ExecStart=/usr/local/bin/ballcone -m '/var/lib/ballcone/monetdb'
-ExecStartPre=-/bin/mkdir -p /var/lib/ballcone/pyinstaller
+ExecStart=/usr/local/bin/ballcone -d '/var/lib/ballcone/duckdb/ballcone.duckdb'
+ExecStartPre=-/bin/mkdir -p /var/lib/ballcone/pyinstaller /var/lib/ballcone/duckdb
 Restart=on-failure
 
 [Install]

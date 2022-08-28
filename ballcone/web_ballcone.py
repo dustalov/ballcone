@@ -130,7 +130,7 @@ class WebBallcone:
     async def sql(self, request: web.Request) -> Dict[str, Any]:
         data = await request.post()
 
-        sql = str(data.get('sql', f"SELECT '{self.ballcone.dao.schema}';"))
+        sql = str(data.get('sql', 'SELECT pragma_database_size();'))
 
         result: List[List[Any]] = []
         error: Optional[str] = None

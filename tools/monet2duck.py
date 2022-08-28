@@ -1,22 +1,23 @@
 #!/usr/bin/env python3
 
 import argparse
-import duckdb  # pip install duckdb
 import itertools
-import monetdblite  # pip install -e 'git+https://github.com/MonetDB/MonetDBLite-Python.git@v0.6.3#egg=monetdblite'
-from datetime import datetime, date
+from datetime import datetime
 from pathlib import Path
 from typing import Union, List, Optional, Any
 
+import duckdb  # pip install duckdb
+import monetdblite  # pip install -e 'git+https://github.com/MonetDB/MonetDBLite-Python.git@v0.6.3#egg=monetdblite'
+
 try:
     from tqdm import trange  # pip install tqdm
-except LoadError:
-    def trange(*args, **kwargs):
+except ModuleNotFoundError:
+    def trange(*args, **kwargs):  # type: ignore
         return range(*args)
 
 
 def execute(db: Union[monetdblite.Connection, duckdb.DuckDBPyConnection], sql: str,
-            many: Optional[List[Any]] = None) -> List:
+            many: Optional[List[Any]] = None) -> List[Any]:
     cursor = db.cursor()
 
     if isinstance(db, duckdb.DuckDBPyConnection):

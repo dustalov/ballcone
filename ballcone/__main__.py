@@ -9,10 +9,11 @@ import os
 import sys
 from contextlib import suppress
 from typing import cast
+from pathlib import Path
 
 import aiohttp_jinja2
 import jinja2
-import monetdblite
+import duckdb
 from aiohttp import web
 from geolite2 import geolite2
 
@@ -30,20 +31,16 @@ def main() -> None:
     parser.add_argument('-sp', '--syslog-port', default=65140, type=int, help='syslog UDP port to bind')
     parser.add_argument('-wh', '--web-host', default='127.0.0.1', help='Web interface host to bind')
     parser.add_argument('-wp', '--web-port', default=8080, type=int, help='Web interface TCP port to bind')
-    parser.add_argument('-m', '--monetdb', default='monetdb', help='Path to MonetDB database')
-    parser.add_argument('-ms', '--monetdb-schema', default='ballcone', help='MonetDB schema name')
+    parser.add_argument('-d', '--database', default='ballcone.duckdb', type=Path, help='Path to DuckDB database')
     parser.add_argument('-p', '--period', default=5, type=int, help='Persistence period, in seconds')
     parser.add_argument('-t', '--top-limit', default=5, type=int, help='Limit for top-n queries')
     args = parser.parse_args()
 
     logging.basicConfig(format='%(asctime)s %(message)s', level=logging.DEBUG)
 
-    connection = monetdblite.make_connection(args.monetdb)
+    connection = duckdb.connect(str(args.database.resolve()))
 
-    dao = MonetDAO(connection, args.monetdb_schema)
-
-    if not dao.schema_exists():
-        dao.create_schema()
+    dao = MonetDAO(connection)
 
     geoip = geolite2.reader()
 

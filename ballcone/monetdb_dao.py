@@ -1,28 +1,26 @@
 __author__ = 'Dmitry Ustalov'
 
 import logging
-from calendar import timegm
 from contextlib import contextmanager
 from datetime import datetime, date
 from ipaddress import ip_address, IPv4Address, IPv6Address
 from typing import Generator, NamedTuple, Optional, List, Sequence, Union, Any, NewType, Tuple, Deque, Set, cast
 
-import monetdblite
-from monetdblite.monetize import monet_identifier_escape
+import duckdb
+import pypika.enums
 from pypika import Query, Column, Field, Parameter, Table, Order, functions as fn, analytics as an
 from pypika.queries import QueryBuilder
 
 smallint = NewType('smallint', int)
 
 TYPES = {
-    datetime: 'BIGINT',
-    date: 'INTEGER',
-    str: 'TEXT',
+    datetime: 'TIMESTAMP',
+    str: 'VARCHAR',
     smallint: 'SMALLINT',
     int: 'INTEGER',
     float: 'DOUBLE',
-    IPv4Address: 'TEXT',
-    IPv6Address: 'TEXT',
+    IPv4Address: 'VARCHAR',
+    IPv6Address: 'VARCHAR',
     bool: 'BOOLEAN'
 }
 
@@ -62,10 +60,7 @@ def sql_value_to_python(name: str, annotation: Any, value: Any) -> Any:
     first_type = next(iter(args))
 
     if first_type == datetime:
-        return datetime.utcfromtimestamp(value)
-
-    if first_type == date:
-        return date.fromordinal(value)
+        return value
 
     if first_type == smallint:
         return int(value)
@@ -78,7 +73,6 @@ def sql_value_to_python(name: str, annotation: Any, value: Any) -> Any:
 
 class Entry(NamedTuple):
     datetime: datetime
-    date: date
     host: str
     path: str
     status: smallint
@@ -102,12 +96,6 @@ class Entry(NamedTuple):
 
     @staticmethod
     def as_value(value: Any, annotation: Any = None) -> Any:
-        if isinstance(value, datetime):
-            return timegm(value.utctimetuple())
-
-        if isinstance(value, date):
-            return value.toordinal()
-
         if isinstance(value, (IPv4Address, IPv6Address)):
             return str(value)
 
@@ -152,61 +140,39 @@ class AverageResult(NamedTuple):
 
 
 class MonetDAO:
-    def __init__(self, db: monetdblite.Connection, schema: str) -> None:
+    def __init__(self, db: duckdb.DuckDBPyConnection) -> None:
         self.db = db
-        self.schema = schema
-        self.placeholders = [Parameter('%s') for _ in Entry._fields]
+        self.placeholders = [Parameter('?') for _ in Entry._fields]
 
     def size(self) -> int:
-        # https://www.monetdb.org/Documentation/SQLcatalog/ColumnStorage
-        storage = Table('storage', schema='sys')
-
-        query = Query.from_(storage).select(fn.Sum(
-            storage.columnsize + storage.heapsize + storage.hashes + storage.imprints + storage.orderidx
-        ))
-
-        return int(self.run(query)[0][0])
-
-    def create_schema(self) -> int:
-        # MonetDB does not support DROP SCHEMA: https://www.monetdb.org/Documentation/SQLreference/Schema
-        sql = f'CREATE SCHEMA {monet_identifier_escape(self.schema)}'
-
-        logging.debug(sql)
-
-        with self.transaction() as cursor:
-            return cast(int, cursor.execute(sql))
-
-    def schema_exists(self) -> bool:
-        schemas = Table('schemas', schema='sys')
-
-        query = Query.from_(schemas).select(schemas.name). \
-            where(schemas.name == self.schema)
-
-        return len(self.run(query)) > 0
+        return cast(int, self.run('SELECT COALESCE(total_blocks * block_size, 0) FROM pragma_database_size()')[0][0])
 
     def tables(self) -> Sequence[str]:
-        schemas = Table('schemas', schema='sys')
-        tables = Table('tables', schema='sys')
+        master = Table('sqlite_master')
+        query = Query.from_('sqlite_master').select(master.name). \
+            where(master.type == 'table').distinct(). \
+            orderby(master.name)
 
-        query = Query.from_(tables).select(tables.name). \
-            join(schemas).on(schemas.id == tables.schema_id). \
-            where(schemas.name == self.schema). \
-            orderby(tables.name)
+        sql = str(query)
+
+        logging.debug(sql)
 
         return [table for table, *_ in self.run(query)]
 
     def table_exists(self, table: str) -> bool:
-        schemas = Table('schemas', schema='sys')
-        tables = Table('tables', schema='sys')
+        master = Table('sqlite_master')
 
-        query = Query.from_(tables).select(tables.name). \
-            join(schemas).on(schemas.id == tables.schema_id). \
-            where((schemas.name == self.schema) & (tables.name == table))
+        query = Query.from_(master).select(master.name). \
+            where((master.type == 'table') & (master.name == table))
+
+        sql = str(query)
+
+        logging.debug(sql)
 
         return len(self.run(query)) > 0
 
     def create_table(self, table: str) -> int:
-        target = Table(table, schema=self.schema)
+        target = Table(table)
 
         columns = [Column(name, python_type_to_sql(annotation)) for name, annotation in Entry.__annotations__.items()]
 
@@ -219,15 +185,15 @@ class MonetDAO:
             return cast(int, cursor.execute(sql))
 
     def drop_table(self, table: str) -> int:
-        sql = f'DROP TABLE {monet_identifier_escape(self.schema)}.{monet_identifier_escape(table)}'
+        sql = str(Query.drop_table(table))
 
         logging.debug(sql)
 
         with self.transaction() as cursor:
             return cast(int, cursor.execute(sql))
 
-    def insert_into(self, table: str, entry: Entry, cursor: Optional[monetdblite.cursors.Cursor] = None) -> None:
-        target = Table(table, schema=self.schema)
+    def insert_into(self, table: str, entry: Entry, cursor: Optional[duckdb.DuckDBPyConnection] = None) -> None:
+        target = Table(table)
 
         query = Query.into(target).insert(*self.placeholders)
         sql, values = str(query), entry.as_values()
@@ -241,31 +207,35 @@ class MonetDAO:
                 cursor.execute(sql, values)
 
     def batch_insert_into(self, table: str, entries: Sequence[Entry]) -> int:
-        count = 0
+        if not entries:
+            return 0
 
-        if entries:
-            with self.transaction() as cursor:
-                for entry in entries:
-                    self.insert_into(table, entry, cursor=cursor)
-                    count += 1
+        with self.transaction() as cursor:
+            count = 0
 
-        return count
+            for entry in entries:
+                self.insert_into(table, entry, cursor=cursor)
+                count += 1
+
+            return count
 
     def batch_insert_into_from_deque(self, table: str, entries: Deque[Entry]) -> int:
-        count = 0
+        if not entries:
+            return 0
 
-        if entries:
-            with self.transaction() as cursor:
-                while entries:
-                    entry = entries.popleft()
-                    self.insert_into(table, entry, cursor=cursor)
-                    count += 1
+        with self.transaction() as cursor:
+            count = 0
 
-        return count
+            while entries:
+                entry = entries.popleft()
+                self.insert_into(table, entry, cursor=cursor)
+                count += 1
+
+            return count
 
     def select(self, table: str, start: Optional[date] = None, stop: Optional[date] = None,
                limit: Optional[int] = None) -> List[Entry]:
-        target = Table(table, schema=self.schema)
+        target = Table(table)
 
         query = Query.from_(target).select('*').orderby(target.datetime).limit(limit)
 
@@ -278,15 +248,17 @@ class MonetDAO:
 
         return cast(List[Entry], rows)
 
-    def select_average(self, table: str, field: str, start: Optional[date] = None, stop: Optional[date] = None) -> AverageResult:
-        target = Table(table, schema=self.schema)
+    def select_average(self, table: str, field: str, start: Optional[date] = None,
+                       stop: Optional[date] = None) -> AverageResult:
+        target = Table(table)
         target_field = Field(field, table=target)
+        date = fn.Cast(target.datetime, pypika.enums.SqlTypes.DATE, alias='date')
 
-        query = Query.from_(target).select(target.date,
+        query = Query.from_(target).select(date,
                                            fn.Avg(target_field, alias='average'),
                                            fn.Sum(target_field, alias='sum'),
                                            fn.Count(target_field, alias='count')). \
-            groupby(target.date).orderby(target.date)
+            groupby(date).orderby(target.date)
 
         query = self.apply_dates(query, target, start, stop)
 
@@ -294,7 +266,7 @@ class MonetDAO:
 
         for current in self.run(query):
             result.elements.append(Average(
-                date=date.fromordinal(current[0]),
+                date=current[0],
                 avg=float(current[1]),
                 sum=float(current[2]) if current[3] else 0.,
                 count=int(current[3])
@@ -304,13 +276,15 @@ class MonetDAO:
 
     def select_count(self, table: str, field: Optional[str] = None, start: Optional[date] = None,
                      stop: Optional[date] = None) -> CountResult:
-        target = Table(table, schema=self.schema)
-        count_field = fn.Count(Field(field, table=target) if field else target.date, alias='count')
+        target = Table(table)
+        date = fn.Cast(target.datetime, pypika.enums.SqlTypes.DATE, alias='date')
+
+        count_field = fn.Count(Field(field, table=target) if field else date, alias='count')
 
         if field:
             count_field = count_field.distinct()
 
-        query = Query.from_(target).select(target.date, count_field).groupby(target.date).orderby(target.date)
+        query = Query.from_(target).select(date, count_field).groupby(date).orderby(date)
 
         query = self.apply_dates(query, target, start, stop)
 
@@ -319,7 +293,7 @@ class MonetDAO:
 
         for current in self.run(query):
             result.elements.append(Count(
-                date=date.fromordinal(current[0]),
+                date=current[0],
                 group=None,
                 count=int(current[1])
             ))
@@ -329,8 +303,10 @@ class MonetDAO:
     def select_count_group(self, table: str, field: Optional[str], group: str, distinct: bool = False,
                            start: Optional[date] = None, stop: Optional[date] = None,
                            ascending: bool = True, limit: Optional[int] = None) -> CountResult:
-        target = Table(table, schema=self.schema)
-        count_field = fn.Count(Field(field, table=target) if field else target.date, alias='count')
+        target = Table(table)
+        date = fn.Cast(target.datetime, pypika.enums.SqlTypes.DATE, alias='date')
+
+        count_field = fn.Count(Field(field, table=target) if field else date, alias='count')
         order = Order.asc if ascending else Order.desc
 
         if distinct:
@@ -338,8 +314,8 @@ class MonetDAO:
 
         group_field = Field(group, table=target)
 
-        query = Query.from_(target).select(target.date, group_field.as_('group'), count_field). \
-            groupby(target.date, group_field).orderby(target.date). \
+        query = Query.from_(target).select(date, group_field.as_('group'), count_field). \
+            groupby(date, group_field).orderby(date). \
             orderby(count_field, order=order).orderby(group_field)
 
         query = self.apply_dates(query, target, start, stop)
@@ -358,7 +334,7 @@ class MonetDAO:
 
         for current in self.run(query):
             result.elements.append(Count(
-                date=date.fromordinal(current[0]),
+                date=current[0],
                 group=current[1],
                 count=int(current[2])
             ))
@@ -378,32 +354,34 @@ class MonetDAO:
     @staticmethod
     def apply_dates(query: QueryBuilder, target: Table,
                     start: Optional[date] = None, stop: Optional[date] = None) -> QueryBuilder:
+        date = fn.Cast(target.datetime, pypika.enums.SqlTypes.DATE, alias='date')
+
         if start and stop:
             if start == stop:
-                return query.where(target.date == Entry.as_value(start))
+                return query.where(date == Entry.as_value(start))
             else:
-                return query.where(target.date[Entry.as_value(start):Entry.as_value(stop)])
+                return query.where(date[Entry.as_value(start):Entry.as_value(stop)])
         elif start:
-            return query.where(target.date >= Entry.as_value(start))
+            return query.where(date >= Entry.as_value(start))
         elif stop:
-            return query.where(target.date <= Entry.as_value(stop))
+            return query.where(date <= Entry.as_value(stop))
 
         return query
 
     @contextmanager
-    def cursor(self) -> Generator[monetdblite.cursors.Cursor, None, None]:
+    def cursor(self) -> Generator[duckdb.DuckDBPyConnection, None, None]:
         cursor = self.db.cursor()
 
         try:
+            cursor.begin()
             yield cursor
-        except monetdblite.exceptions.DatabaseError as e:
-            cursor.rollback()
+        except RuntimeError as e:
             raise e
         finally:
             cursor.close()
 
     @contextmanager
-    def transaction(self) -> Generator[monetdblite.cursors.Cursor, None, None]:
+    def transaction(self) -> Generator[duckdb.DuckDBPyConnection, None, None]:
         with self.cursor() as cursor:
             yield cursor
             cursor.commit()
