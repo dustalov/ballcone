@@ -132,7 +132,7 @@ Roadmap is available at <https://github.com/dustalov/ballcone/issues>.
 ## Alternatives
 
 * Web analytics solutions: [Matomo](https://matomo.org/), [Google Analytics](http://google.com/analytics/), [Yandex.Metrica](https://metrica.yandex.com/), etc.
-* Columnar data storages: [ClickHouse](https://clickhouse.tech/), [PostgreSQL cstore_fdw](https://github.com/citusdata/cstore_fdw), [MariaDB ColumnStore](https://mariadb.com/kb/en/mariadb-columnstore/), etc.
+* Columnar data storages: [ClickHouse](https://clickhouse.tech/), [Citus](https://github.com/citusdata/citus), [MariaDB ColumnStore](https://mariadb.com/kb/en/mariadb-columnstore/), etc.
 * Log management: [Graylog](https://www.graylog.org/), [Fluentd](https://www.fluentd.org/), [Elasticsearch](https://github.com/elastic/elasticsearch), etc.
 
 ## Copyright
