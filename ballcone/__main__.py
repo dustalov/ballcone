@@ -31,14 +31,17 @@ def main() -> None:
     parser.add_argument('-sp', '--syslog-port', default=65140, type=int, help='syslog UDP port to bind')
     parser.add_argument('-wh', '--web-host', default='127.0.0.1', help='Web interface host to bind')
     parser.add_argument('-wp', '--web-port', default=8080, type=int, help='Web interface TCP port to bind')
-    parser.add_argument('-d', '--database', default='ballcone.duckdb', type=Path, help='Path to DuckDB database')
+    parser.add_argument('-d', '--database', default='ballcone.duckdb', help='Path to DuckDB database')
     parser.add_argument('-p', '--period', default=5, type=int, help='Persistence period, in seconds')
     parser.add_argument('-t', '--top-limit', default=5, type=int, help='Limit for top-n queries')
     args = parser.parse_args()
 
     logging.basicConfig(format='%(asctime)s %(message)s', level=logging.DEBUG)
 
-    connection = duckdb.connect(str(args.database.resolve()))
+    if args.database == ':memory:':
+        connection = duckdb.connect(args.database)
+    else:
+        connection = duckdb.connect(str(Path(args.database).resolve()))
 
     dao = DAO(connection)
 
