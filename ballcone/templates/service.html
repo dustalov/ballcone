@@ -13,7 +13,7 @@
                 </tr>
                 </thead>
                 <tbody>
-                {% for date, row in overview.items() %}
+                {% for date, row in overview.items() | reverse %}
                 <tr>
                     <td>{{ date }}</td>
                     <td>{{ row['visits'] }}</td>
@@ -38,7 +38,7 @@
                 </tr>
                 </thead>
                 <tbody>
-                {% for element in time.elements %}
+                {% for element in time.elements | reverse %}
                 <tr>
                     <td>{{ element.date }}</td>
                     <td>{{ element.avg | round(4) }}</td>
@@ -62,12 +62,16 @@
             </tr>
             </thead>
             <tbody>
-            {% for element in paths.elements %}
+            {% for date, subelements in paths.elements | groupby('date') | reverse %}
+            {% for element in subelements %}
             <tr>
-                <td>{{ element.date }}</td>
+                {% if loop.first %}
+                <td rowspan="{{ subelements | length }}">{{ date }}</td>
+                {% endif %}
                 <td>{{ element.group }}</td>
                 <td>{{ element.count }}</td>
             </tr>
+            {% endfor %}
             {% endfor %}
             </tbody>
         </table>
@@ -82,12 +86,16 @@
         </tr>
         </thead>
         <tbody>
-        {% for element in browsers.elements %}
+        {% for date, subelements in browsers.elements | groupby('date') | reverse %}
+        {% for element in subelements %}
         <tr>
-            <td>{{ element.date }}</td>
+            {% if loop.first %}
+            <td rowspan="{{ subelements | length }}">{{ date }}</td>
+            {% endif %}
             <td>{{ element.group }}</td>
             <td>{{ element.count }}</td>
         </tr>
+        {% endfor %}
         {% endfor %}
         </tbody>
     </table>
