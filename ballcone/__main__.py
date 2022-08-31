@@ -55,7 +55,6 @@ def main() -> None:
 
     syslog = loop.create_datagram_endpoint(lambda: SyslogProtocol(ballcone),
                                            local_addr=(args.syslog_host, args.syslog_port))
-    loop.run_until_complete(syslog)
 
     # PyInstaller
     if getattr(sys, 'frozen', False):
@@ -77,10 +76,10 @@ def main() -> None:
     app.router.add_get('/sql', handler.sql, name='sql')
     app.router.add_post('/sql', handler.sql, name='sql')
     app.router.add_get('/nginx', handler.nginx, name='nginx')
-    web.run_app(app, host=args.web_host, port=args.web_port)
 
     try:
-        loop.run_forever()
+        loop.run_until_complete(syslog)
+        web.run_app(app, host=args.web_host, port=args.web_port, loop=loop)
     finally:
         with suppress(RuntimeError):
             for task in asyncio.all_tasks():
