@@ -50,9 +50,6 @@ class Ballcone:
             except RuntimeError:
                 logging.exception('Please check if the query is correct')
 
-    def unwrap_top_limit(self, top_limit: Optional[int] = None) -> int:
-        return top_limit if top_limit else self.top_limit
-
     def check_service(self, service: Optional[str], should_exist: bool = False) -> bool:
         return (
             service is not None

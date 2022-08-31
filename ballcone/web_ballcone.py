@@ -70,7 +70,7 @@ class WebBallcone:
 
                 overview[element.date][query] = element.count
 
-        limit = self.ballcone.unwrap_top_limit()
+        limit = self.ballcone.top_limit
 
         time = self.ballcone.dao.select_average(service, 'generation_time', start, stop)
 
