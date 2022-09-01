@@ -133,3 +133,5 @@ dmypy.json
 .DS_Store
 Makefile.local
 .rsyncignore
+*.duckdb
+*.duckdb.wal
