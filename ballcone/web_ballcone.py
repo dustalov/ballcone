@@ -15,8 +15,9 @@ from ballcone.core import VALID_SERVICE, Ballcone
 
 
 class WebBallcone:
-    def __init__(self, ballcone: Ballcone) -> None:
+    def __init__(self, ballcone: Ballcone, days: int = 7) -> None:
         self.ballcone = ballcone
+        self.days = days
 
     @aiohttp_jinja2.template('root.html')
     async def root(self, _: web.Request) -> Dict[str, Any]:
@@ -54,7 +55,7 @@ class WebBallcone:
 
         service = cast(str, service)
 
-        start, stop = self.ballcone.days_before(days=7)
+        start, stop = self.ballcone.days_before(days=self.days)
 
         queries = {
             'visits': self.ballcone.dao.select_count(service, start=start, stop=stop),
