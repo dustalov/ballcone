@@ -98,7 +98,7 @@ class WebBallcone:
         if not self.ballcone.check_service(service):
             raise web.HTTPNotFound(text=f'No such service: {service}')
 
-        start, stop = self.ballcone.days_before()
+        start, stop = self.ballcone.days_before(days=self.days)
 
         if request.match_info.route.name == 'average':
             average_response = self.ballcone.dao.select_average(service, field=field, start=start, stop=stop)
@@ -118,7 +118,7 @@ class WebBallcone:
         ascending = bool(request.query.get('ascending', None))
         limit = int(request.query['limit']) if 'limit' in request.query else None
 
-        start, stop = self.ballcone.days_before()
+        start, stop = self.ballcone.days_before(days=self.days)
 
         response = self.ballcone.dao.select_count_group(service, field=field, group=group,
                                                         distinct=distinct, ascending=ascending, limit=limit,

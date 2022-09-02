@@ -34,7 +34,7 @@ def main() -> None:
     parser.add_argument('-d', '--database', default='ballcone.duckdb', help='Path to DuckDB database')
     parser.add_argument('-p', '--period', default=5, type=int, help='Persistence period, in seconds')
     parser.add_argument('-t', '--top-limit', default=5, type=int, help='Limit for top-n queries')
-    parser.add_argument('--days', default=7, type=int, help='Default number of days in plots')
+    parser.add_argument('--days', default=30, type=int, help='Default number of days in plots')
     args = parser.parse_args()
 
     logging.basicConfig(format='%(asctime)s %(message)s', level=logging.DEBUG)
