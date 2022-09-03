@@ -8,7 +8,7 @@ WORKDIR /usr/src/app
 
 COPY ballcone /usr/src/app/ballcone/
 
-COPY pyproject.toml Pipfile Pipfile.lock setup.cfg setup.py README.md LICENSE /usr/src/app/
+COPY pyproject.toml Pipfile Pipfile.lock setup.py README.md LICENSE /usr/src/app/
 
 RUN \
 apt-get update && \
