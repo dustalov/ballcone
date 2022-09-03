@@ -27,6 +27,8 @@ jobs:
         run: flake8
       - name: Test with unittest
         run: python3 -munittest discover
+      - name: Build
+        run: python3 -m build --sdist --wheel .
       - name: Build with PyInstaller
         run: |
           pyinstaller ballcone.spec
