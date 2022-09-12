@@ -4,7 +4,7 @@ import argparse
 import itertools
 from datetime import datetime
 from pathlib import Path
-from typing import Union, List, Optional, Any
+from typing import Union, List, Optional, Any, cast
 
 import duckdb  # pip install duckdb
 import monetdblite  # pip install -e 'git+https://github.com/MonetDB/MonetDBLite-Python.git@v0.6.3#egg=monetdblite'
@@ -25,7 +25,7 @@ def execute(db: Union[monetdblite.Connection, duckdb.DuckDBPyConnection], sql: s
 
     if many is None:
         cursor.execute(sql)
-        result = cursor.fetchall()
+        result = cast(List[Any], cursor.fetchall())
     else:
         cursor.executemany(sql, many)
         result = []
