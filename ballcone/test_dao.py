@@ -9,7 +9,7 @@ import duckdb
 from ballcone.dao import DAO, Entry, smallint
 
 
-class TestMonetDAO(unittest.TestCase):
+class TestDAO(unittest.TestCase):
     ENTRIES_20200101 = [
         Entry(datetime=datetime(2020, 1, 1, 12), host='example.com', path='/',
               status=cast(smallint, 200), length=1024, generation_time=0.1, referer=None,
