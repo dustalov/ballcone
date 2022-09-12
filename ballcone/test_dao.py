@@ -286,7 +286,7 @@ class TestDAO(unittest.TestCase):
         self.assertEqual(2, after.elements[0].count)
 
     def test_error(self) -> None:
-        with self.assertRaises(RuntimeError):
+        with self.assertRaises(duckdb.Error):
             self.dao.run('SELECT UNSELECT;')
 
     def seed(self, table: str, create_table: bool = True, insert_entries: bool = True) -> None:

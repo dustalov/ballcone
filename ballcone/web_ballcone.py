@@ -8,6 +8,7 @@ from time import time
 from typing import Dict, Optional, List, Any, cast
 
 import aiohttp_jinja2
+import duckdb
 from aiohttp import web
 
 from ballcone import __version__
@@ -138,7 +139,7 @@ class WebBallcone:
         if sql:
             try:
                 result = self.ballcone.dao.run(sql)
-            except RuntimeError as e:
+            except duckdb.Error as e:
                 error = str(e)
 
         services = self.ballcone.dao.tables()
