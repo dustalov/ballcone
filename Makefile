@@ -20,7 +20,7 @@ install-systemd:
 	systemctl restart ballcone
 
 test:
-	$(PIPENV) run test
+	$(PIPENV) test
 
 docker:
 	docker build --rm -t ballcone .
