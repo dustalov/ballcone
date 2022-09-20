@@ -27,7 +27,6 @@ dependencies = [
     "maxminddb-geolite2",
     "aiohttp",
     "aiohttp-jinja2",
-    "numpy",
     "duckdb",
     "pandas",
     "PyPika",
