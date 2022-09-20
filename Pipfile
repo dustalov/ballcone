@@ -19,4 +19,4 @@ twine = "*"
 build = "*"
 
 [scripts]
-test = python3 -munittest discover
+test = "python3 -munittest discover"
