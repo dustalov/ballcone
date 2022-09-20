@@ -28,6 +28,7 @@ dependencies = [
     "aiohttp",
     "aiohttp-jinja2",
     "duckdb",
+    "pandas",
     "PyPika",
     "simplejson",
     "python-dateutil",
