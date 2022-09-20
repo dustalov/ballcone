@@ -20,10 +20,7 @@ install-systemd:
 	systemctl restart ballcone
 
 test:
-	$(PIPENV) python3 -munittest discover
-
-mypy:
-	$(PIPENV) mypy --ignore-missing-imports --allow-untyped-calls --strict $(shell git ls-files '*.py')
+	$(PIPENV) run test
 
 docker:
 	docker build --rm -t ballcone .

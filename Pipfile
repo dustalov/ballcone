@@ -17,3 +17,6 @@ flake8 = "*"
 pyinstaller = "*"
 twine = "*"
 build = "*"
+
+[scripts]
+test = python3 -munittest discover
