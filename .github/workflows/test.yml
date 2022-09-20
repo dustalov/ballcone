@@ -20,18 +20,18 @@ jobs:
         run: |
           python3 -m pip install --upgrade pip
           pip install pipenv
-          pipenv install --dev --system --deploy --verbose
+          pipenv install --dev --deploy
       - name: Lint with Mypy
-        run: mypy ballcone tools
+        run: pipenv run mypy ballcone tools
       - name: Lint with flake8
-        run: flake8
+        run: pipenv run flake8
       - name: Test with unittest
-        run: python3 -munittest discover
+        run: pipenv run python3 -munittest discover
       - name: Build
-        run: python3 -m build --sdist --wheel .
+        run: pipenv run python3 -m build --sdist --wheel .
       - name: Build with PyInstaller
         run: |
-          pyinstaller ballcone.spec
+          pipenv run pyinstaller ballcone.spec
           dist/ballcone --version
   docker:
     needs: build
