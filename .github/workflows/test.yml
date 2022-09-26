@@ -20,7 +20,7 @@ jobs:
         run: |
           python3 -m pip install --upgrade pip
           pip install pipenv
-          pipenv install --python "${{ matrix.python-version }}" --dev --system --deploy
+          pipenv install --python "3.9" --dev --system --deploy
       - name: Lint with Mypy
         run: mypy ballcone tools
       - name: Lint with flake8

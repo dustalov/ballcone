@@ -18,7 +18,7 @@ jobs:
         run: |
           python3 -m pip install --upgrade pip
           pip install pipenv
-          pipenv install --python "${{ matrix.python-version }}" --dev --system --deploy
+          pipenv install --python "3.9" --dev --system --deploy
       - name: Create release
         id: create_release
         uses: actions/create-release@v1.1.4
