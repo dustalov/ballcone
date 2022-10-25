@@ -16,7 +16,7 @@ VALID_SERVICE = re.compile(r'\A[\w]+\Z')
 
 
 class BallconeJSONEncoder(simplejson.JSONEncoder):
-    def default(self, obj: Any) -> str:
+    def default(self, obj: Any) -> str:  # type: ignore
         if isinstance(obj, date):
             return obj.isoformat()
 
