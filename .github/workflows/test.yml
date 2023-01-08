@@ -53,7 +53,7 @@ jobs:
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
-          repository: peterevans/dockerhub-description
+          repository: dustalov/ballcone
           short-description: ${{ github.event.repository.description }}
       - name: Login to GitHub Container Registry
         if: github.event_name != 'pull_request'
