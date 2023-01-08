@@ -137,4 +137,4 @@ Roadmap is available at <https://github.com/dustalov/ballcone/issues>.
 
 ## Copyright
 
-Copyright &copy; 2020&ndash;2022 Dmitry Ustalov. See [LICENSE](LICENSE) for details.
+Copyright &copy; 2020&ndash;2023 Dmitry Ustalov. See [LICENSE](LICENSE) for details.
