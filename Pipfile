@@ -7,16 +7,7 @@ name = "pypi"
 ballcone = {editable = true, path = "."}
 
 [dev-packages]
-mypy = "*"
-typed-ast = "*"
-typing_extensions = "*"
-types-simplejson = "*"
-types-python-dateutil = "*"
-types-Jinja2 = "*"
-flake8 = "*"
-pyinstaller = "*"
-twine = "*"
-build = "*"
+requests = {editable = true, path = ".", extras = ["dev"]}
 
 [scripts]
 test = "python3 -munittest discover"

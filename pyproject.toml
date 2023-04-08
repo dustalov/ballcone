@@ -35,6 +35,20 @@ dependencies = [
 ]
 dynamic = ["version"]
 
+[project.optional-dependencies]
+dev = [
+    "mypy",
+    "typed-ast",
+    "typing_extensions",
+    "types-simplejson",
+    "types-python-dateutil",
+    "types-Jinja2",
+    "flake8",
+    "pyinstaller",
+    "twine",
+    "build"
+]
+
 [project.readme]
 file = "README.md"
 content-type = "text/markdown"
