@@ -15,12 +15,12 @@ jobs:
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v4
         with:
-          python-version: '3.11'
+          python-version: '3.10'
       - name: Install dependencies
         run: |
           python3 -m pip install --upgrade pip
           pip install pipenv
-          pipenv install --python "3.11" --dev --system --deploy
+          pipenv install --python "3.10" --dev --system --deploy
       - name: Lint with Mypy
         run: mypy ballcone tools
       - name: Lint with flake8
