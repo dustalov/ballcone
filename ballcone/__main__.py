@@ -27,7 +27,7 @@ from ballcone.web_ballcone import WebBallcone
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument('-v', '--version', action='version',
-                        version=f'Ballcone v{__version__} (DuckDB v{duckdb.__version__})')
+                        version=f'Ballcone v{__version__} (DuckDB v{duckdb.__version__})')  # type: ignore
     parser.add_argument('-sh', '--syslog-host', default='127.0.0.1', help='syslog host to bind')
     parser.add_argument('-sp', '--syslog-port', default=65140, type=int, help='syslog UDP port to bind')
     parser.add_argument('-wh', '--web-host', default='127.0.0.1', help='Web interface host to bind')
