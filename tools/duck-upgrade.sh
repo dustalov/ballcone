@@ -20,3 +20,5 @@ set -x
 
 $OLD "$OLDDB" -c "EXPORT DATABASE '$TEMP' (FORMAT PARQUET);"
 $NEW "$NEWDB" -c "IMPORT DATABASE '$TEMP';"
+
+[ "$(uname -s)" = "Linux" ] && chmod --reference="$OLDDB" "$NEWDB"
