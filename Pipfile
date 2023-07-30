@@ -10,4 +10,4 @@ ballcone = {editable = true, path = "."}
 ballcone = {editable = true, path = ".", extras = ["dev"]}
 
 [scripts]
-test = "python3 -munittest discover"
+test = "python3 -m unittest discover"
