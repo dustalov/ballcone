@@ -8,7 +8,7 @@ block_cipher = None
 
 a = Analysis(['ballcone/__main__.py'],
              datas=[(geolite2_city, '_maxminddb_geolite2'), ('ballcone/templates', 'templates')],
-             hiddenimports=['cmath', 'pkg_resources.py2_warn', 'numpy'],
+             hiddenimports=['cmath', 'pkg_resources.py2_warn', 'numpy', 'ipaddress'],
              hookspath=[],
              runtime_hooks=[],
              excludes=[],
