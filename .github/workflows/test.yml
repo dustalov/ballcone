@@ -63,7 +63,7 @@ jobs:
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Build and push Ballcone
-        uses: docker/build-push-action@v4
+        uses: docker/build-push-action@v5
         with:
           context: .
           push: ${{ github.event_name != 'pull_request' }}
@@ -71,7 +71,7 @@ jobs:
             dustalov/ballcone:latest
             ghcr.io/dustalov/ballcone:latest
       - name: Build and push Ballcone Demo
-        uses: docker/build-push-action@v4
+        uses: docker/build-push-action@v5
         with:
           context: .
           file: Dockerfile.demo
