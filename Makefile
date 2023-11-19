@@ -2,7 +2,10 @@ export LANG := en_US.UTF-8
 
 PIPENV := nice pipenv run
 
--include Makefile.local
+test:
+	$(PIPENV) mypy ballcone tools
+	$(PIPENV) ruff check .
+	$(PIPENV) python3 -m unittest discover
 
 run: ballcone/__main__.py
 	$(PIPENV) "$<"
@@ -19,12 +22,10 @@ install-systemd:
 	systemctl enable ballcone
 	systemctl restart ballcone
 
-test:
-	$(PIPENV) ruff check .
-	$(PIPENV) test
-
 docker:
 	docker build --rm -t ballcone .
 
 pipenv:
 	pipenv install --dev
+
+-include Makefile.local

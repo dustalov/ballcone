@@ -8,6 +8,3 @@ ballcone = {editable = true, path = "."}
 
 [dev-packages]
 ballcone = {editable = true, path = ".", extras = ["dev"]}
-
-[scripts]
-test = "python3 -m unittest discover"
