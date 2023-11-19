@@ -3,7 +3,7 @@ __author__ = 'Dmitry Ustalov'
 import asyncio
 import logging
 import re
-from datetime import datetime, date, timedelta
+from datetime import datetime, date, timedelta, timezone
 from ipaddress import IPv4Address, IPv6Address
 from typing import Optional, Dict, Deque, Tuple, Any, cast
 
@@ -65,7 +65,7 @@ class Ballcone:
 
     @staticmethod
     def days_before(stop_date: Optional[date] = None, days: int = 30) -> Tuple[date, date]:
-        stop = stop_date if stop_date else datetime.utcnow().date()
+        stop = stop_date if stop_date else datetime.now(timezone.utc).date()
 
         start = stop - timedelta(days=days - 1)
 

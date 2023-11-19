@@ -1,7 +1,7 @@
 __author__ = 'Dmitry Ustalov'
 
 from collections import OrderedDict
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from functools import lru_cache
 from ipaddress import ip_address
 from time import time
@@ -22,7 +22,7 @@ class WebBallcone:
 
     @aiohttp_jinja2.template('root.html')
     async def root(self, _: web.Request) -> Dict[str, Any]:
-        today = datetime.utcnow().date()
+        today = datetime.now(timezone.utc).date()
 
         services = self.ballcone.dao.tables()
 
