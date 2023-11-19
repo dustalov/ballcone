@@ -1,5 +1,10 @@
 export LANG := en_US.UTF-8
 
+MAKEFLAGS += --warn-undefined-variables
+MAKEFLAGS += --no-builtin-rules
+
+DOCKER := $(if $(shell which podman),podman,docker)
+
 PIPENV := nice pipenv run
 
 test:
@@ -23,7 +28,7 @@ install-systemd:
 	systemctl restart ballcone
 
 docker:
-	docker build --rm -t ballcone .
+	$(DOCKER) build -f Dockerfile --rm -t ballcone .
 
 pipenv:
 	pipenv install --dev
