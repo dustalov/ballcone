@@ -20,6 +20,7 @@ install-systemd:
 	systemctl restart ballcone
 
 test:
+	$(PIPENV) ruff check .
 	$(PIPENV) test
 
 docker:

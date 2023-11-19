@@ -43,7 +43,7 @@ dev = [
     "types-simplejson",
     "types-python-dateutil",
     "types-Jinja2",
-    "flake8",
+    "ruff",
     "pyinstaller",
     "twine",
     "build"
